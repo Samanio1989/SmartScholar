@@ -67,9 +67,20 @@ input[type=number]{width:125px}button{background:#17614f;color:white;border-colo
   .responsive-table td:last-child{grid-column:1/-1}
   .responsive-table td:last-child button{margin:2px 0}
 }
+.account-bar{display:flex;align-items:center;gap:10px;min-width:0}
+.account-name{min-width:0;overflow-wrap:anywhere}.account-name strong,.account-name small{display:block}
+.account-name small{color:#c0e3d7}.student-photo{width:44px;height:44px;border-radius:50%;object-fit:cover;border:1px solid #a5ccc0}
+#detailPhoto{width:70px;height:70px}
+.year-history{display:grid;gap:12px}.year-record{border:1px solid #dce6df;border-radius:12px;padding:14px;background:#f8fbf9}
+.year-record h3{margin:0 0 10px}.year-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,160px),1fr));gap:8px 12px;margin:0}
+.year-fields div{min-width:0}.year-fields dt{font-size:.85rem;color:#496459}.year-fields dd{margin:2px 0 0;overflow-wrap:anywhere}
+.year-record details{margin:12px 0 0;padding:10px}.history-activities{padding-left:1.3rem}
+@media(max-width:600px){header{flex-wrap:wrap}.account-bar{flex-wrap:wrap}}
 </style></head>
 <body>
-<header><div><h1>ระบบทุนการศึกษาต่อเนื่อง</h1><p>กองพัฒนานักศึกษา · มหาวิทยาลัยราชภัฏพระนครศรีอยุธยา</p></div><button id="logout" class="secondary" hidden>ออกจากระบบ</button></header>
+<header><div><h1>ระบบทุนการศึกษาต่อเนื่อง</h1><p>กองพัฒนานักศึกษา · มหาวิทยาลัยราชภัฏพระนครศรีอยุธยา</p></div><div class="account-bar"><img id="accountPhoto" class="student-photo" alt="" hidden>
+<div id="accountName" class="account-name" hidden><strong id="signedInName"></strong><small id="signedInRole"></small></div>
+<button id="logout" class="secondary" hidden>ออกจากระบบ</button></div></header>
 <main>
 <p id="error" role="alert"></p><p id="notice" role="status"></p>
 <section id="login" hidden><h2>เข้าสู่ระบบ</h2><form id="loginForm">
@@ -120,18 +131,32 @@ input[type=number]{width:125px}button{background:#17614f;color:white;border-colo
 <div class="actions"><button id="prev" class="secondary">ก่อนหน้า</button><span id="page"></span><button id="next" class="secondary">ถัดไป</button></div>
 </section>
 </div></div>
-<section id="student" hidden>
-<h2>ข้อมูลทุนของฉัน</h2><div id="studentInfo"></div>
+<div id="student" class="staff-layout" hidden>
+<aside id="studentSidebar" class="staff-sidebar"><nav id="studentNav" class="staff-nav" aria-label="เมนูนักศึกษา">
+<button type="button" data-panel="guardianPanel" aria-controls="guardianPanel" aria-current="true">กรอกข้อมูลผู้ปกครอง</button>
+<button type="button" data-panel="historyPanel" aria-controls="historyPanel">ข้อมูลการรับทุนการศึกษา</button>
+</nav></aside>
+<div class="staff-content"><section id="guardianPanel">
+<h2>กรอกข้อมูลผู้ปกครอง</h2><div id="studentInfo"></div><p id="guardianLock" role="status" hidden></p>
 <form id="guardian" hidden>
 <label>ชื่อ–สกุลผู้ปกครองผู้ลงนาม<input name="name" maxlength="160" required></label>
 <label>ความเกี่ยวข้อง<select name="relationship" required><option value="">เลือกความเกี่ยวข้อง</option><option value="father">บิดา</option><option value="mother">มารดา</option><option value="relative">ญาติผู้ปกครอง</option></select></label>
 <div id="relative" hidden><label>ระบุความเกี่ยวข้อง<input name="kinship" maxlength="100"></label>
 <label class="check"><input type="checkbox" name="parents_unavailable">ยืนยันว่าทั้งบิดาและมารดาไม่ได้ส่งเสียเลี้ยงดู</label></div>
 <button>บันทึกผู้ปกครอง</button></form></section>
+<section id="historyPanel" hidden><h2>ข้อมูลการรับทุนการศึกษา</h2>
+<p id="historySummary"></p><div id="historyYears" class="year-history"></div></section>
+</div></div>
 </div>
 </main>
 <dialog id="detail"><div class="actions"><button type="button" class="secondary" id="close">ปิด</button></div><h2 id="detailName"></h2><div id="detailInfo"></div><p id="detailError" role="alert"></p>
-<p id="detailNotice" role="status"></p><div id="edit">
+<p id="detailNotice" role="status"></p>
+<section class="detail-panel"><h3>รูปนักศึกษา</h3><img id="detailPhoto" class="student-photo" alt="รูปนักศึกษา" hidden>
+<form id="photoForm"><label>เลือกรูปนักศึกษา<input name="file" type="file" accept="image/jpeg,image/png,image/webp" required></label>
+<button>บันทึกรูป</button><button id="removePhoto" type="button" class="secondary" hidden>นำรูปออก</button></form></section>
+<div id="edit">
+<section class="detail-panel"><h3>ผู้ปกครองผู้ลงนาม</h3><p id="guardianReview"></p>
+<button id="confirmGuardian" type="button" hidden>ยืนยันชื่อผู้ปกครอง</button></section>
 <section class="detail-panel"><h3>สถานะการศึกษาและทุน</h3><form id="study">
 <label>ประเภททุน<select name="kind" required></select></label>
 <div>ชั้นปีในปีการศึกษานี้ <output id="computedLevel">—</output></div>
@@ -313,7 +338,10 @@ async function refresh() {
   } else {
     const row=records[0],form=$('guardian');
     $('studentInfo').replaceChildren(...(row?describe(row):[node('p','ปีการศึกษานี้ไม่มีรายชื่อรับทุน')]));
-    form.hidden=row?.status!=='active';
+    form.hidden=row?.status!=='active'||Boolean(row?.guardian_confirmed_at);
+    $('guardianLock').hidden=!row?.guardian_confirmed_at;
+    $('guardianLock').textContent=row?.guardian_confirmed_at
+      ? 'ผู้ดูแลยืนยันชื่อผู้ปกครองแล้วเมื่อ '+thaiDateTime(row.guardian_confirmed_at)+' ข้อมูลถูกล็อกแล้ว' : '';
     form.elements.name.value=row?.guardian_name||'';form.elements.relationship.value=row?.relationship||'';
     form.elements.kinship.value=row?.kinship||'';form.elements.parents_unavailable.checked=row?.relationship==='relative';
     updateRelative();
@@ -325,8 +353,18 @@ function updateRelative() {
 }
 async function openDetail(id) {
   const row=records.find(item=>item.id===id);
-  const entries=row.recorded_status?await api('activities',{student_id:id}):[];
+  const [entries,profilePhoto]=await Promise.all([
+    row.recorded_status?api('activities',{student_id:id}):[],
+    api('student_photo',{student_id:id})
+  ]);
   selected=id;
+  showPhoto('detailPhoto',profilePhoto.photo);
+  $('removePhoto').hidden=!profilePhoto.photo;
+  $('photoForm').reset();
+  $('guardianReview').textContent=row.guardian_confirmed_at
+    ? row.guardian_name+' · ยืนยันแล้วเมื่อ '+thaiDateTime(row.guardian_confirmed_at)
+    : row.guardian_name?(row.guardian_name+' ('+(row.kinship||kin[row.relationship])+') · รอยืนยันในวันลงนามสัญญา'):'นักศึกษายังไม่ได้ส่งข้อมูลผู้ปกครอง';
+  $('confirmGuardian').hidden=!row.guardian_name||Boolean(row.guardian_confirmed_at);
   $('detailName').textContent=row.full_name;$('detailInfo').replaceChildren(...describe(row));
   $('detailError').textContent='';$('edit').hidden=!row.recorded_status;
   const grade=$('record').elements,study=$('study').elements;
@@ -469,25 +507,111 @@ $('export').onclick=()=>{
   const link=node('a');link.href=url;link.download='ARU-scholarships-'+schoolYear+'.csv';link.click();
   setTimeout(()=>URL.revokeObjectURL(url),1000);
 };
-const staffMenu=[...$('staffNav').querySelectorAll('button[data-panel]')];
-function showStaffPanel(panelId) {
-  for(const button of staffMenu){
-    const active=button.dataset.panel===panelId;
-    $(button.dataset.panel).hidden=!active;
-    if(active) button.setAttribute('aria-current','true');
-    else button.removeAttribute('aria-current');
+function thaiDateTime(value){
+  return new Intl.DateTimeFormat('th-TH',{dateStyle:'medium',timeStyle:'short',timeZone:'Asia/Bangkok'}).format(new Date(value));
+}
+function showPhoto(id,photo){
+  const image=$(id);
+  image.hidden=!photo;
+  if(photo) image.src='data:image/jpeg;base64,'+photo;
+  else image.removeAttribute('src');
+}
+function renderHistory(history){
+  const activitiesByYear=new Map();
+  for(const item of history.activities){
+    if(!activitiesByYear.has(item.year)) activitiesByYear.set(item.year,[]);
+    activitiesByYear.get(item.year).push(item);
   }
+  const hours=items=>items.reduce((total,item)=>total+Number(item.hours),0).toLocaleString('th-TH',{maximumFractionDigits:2});
+  const grade=value=>value==null?'—':Number(value).toFixed(2);
+  $('historySummary').textContent='ปีการศึกษาปัจจุบัน '+history.current_year+' · กิจกรรมสะสม '+
+    history.activities.length+' รายการ · '+hours(history.activities)+' ชั่วโมง'+
+    (history.entry_year==null?' · ระบุปีเข้าเรียนจากรหัสไม่ได้':'');
+  $('historyYears').replaceChildren(...history.years.map(({year,future,record})=>{
+    const level=history.entry_year==null?null:year-history.entry_year+1;
+    const card=node('article',null,'year-record'),items=activitiesByYear.get(year)||[];
+    card.append(node('h3','ปีการศึกษา '+year+(level>0?' · ชั้นปี '+level:'')));
+    if(future){card.append(node('p','รอผลการตรวจสอบ'));return card;}
+    const fields=node('dl',null,'year-fields');
+    const values=[
+      ['GPA ภาคเรียนที่ 1',grade(record?.gpa1)],['GPA ภาคเรียนที่ 2',grade(record?.gpa2)],
+      ['GPAX',grade(record?.annual_gpa)],['ผลตรวจสอบเกรด',gradeOutcomes[record?.gpa_result]||'—'],
+      ['สถานะการศึกษา',studyStates[record?.study_status]||'ไม่มีข้อมูล'],
+      ['สถานะรับทุน',states[record?.status]||'ยังไม่ได้กำหนดทุน'],
+      ['ประเภททุน',kinds[record?.kind]||'—'],
+      ['ผลกิจกรรม',outcomes[record?.hours_result]||'—'],
+      ['กิจกรรมปีนี้',items.length+' รายการ · '+hours(items)+' ชั่วโมง']
+    ];
+    for(const [label,value] of values){
+      const field=node('div');field.append(node('dt',label),node('dd',value));fields.append(field);
+    }
+    card.append(fields);
+    if(items.length){
+      const detail=node('details'),list=node('ul',null,'history-activities');
+      detail.open=true;detail.append(node('summary','รายการกิจกรรม'));
+      for(const item of items){
+        const date=new Intl.DateTimeFormat('th-TH',{dateStyle:'medium',timeZone:'Asia/Bangkok'}).format(new Date(item.date+'T00:00:00+07:00'));
+        list.append(node('li',item.name+' · '+date+(item.semester?' · ภาคเรียน '+item.semester:'')+' · '+item.hours+' ชั่วโมง'));
+      }
+      detail.append(list);card.append(detail);
+    }
+    return card;
+  }));
 }
-for(const button of staffMenu){
-  button.addEventListener('click',()=>showStaffPanel(button.dataset.panel));
+$('confirmGuardian').onclick=()=>{
+  const row=records.find(item=>item.id===selected);
+  if(!row||!confirm('ยืนยันชื่อ '+row.guardian_name+' สำหรับปี '+schoolYear+'? นักศึกษาจะแก้ไขข้อมูลไม่ได้หลังยืนยัน')) return;
+  run(()=>saveDetail('confirm_guardian',{name:row.guardian_name,relationship:row.relationship,kinship:row.kinship},'ยืนยันชื่อผู้ปกครองแล้ว'),$('confirmGuardian'));
+};
+bind('photoForm',async data=>{
+  const id=selected,year=schoolYear,file=data.file;
+  if(file.size>10*1024*1024) throw Error('กรุณาเลือกรูปขนาดไม่เกิน 10 MB');
+  const bitmap=await createImageBitmap(file);
+  const canvas=document.createElement('canvas');
+  const scale=Math.min(1,480/Math.max(bitmap.width,bitmap.height));
+  canvas.width=Math.max(1,Math.round(bitmap.width*scale));canvas.height=Math.max(1,Math.round(bitmap.height*scale));
+  const ctx=canvas.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);
+  ctx.drawImage(bitmap,0,0,canvas.width,canvas.height);bitmap.close();
+  if(selected!==id||schoolYear!==year||!$('detail').open) throw Error('กรุณาเปิดหน้าข้อมูลนักศึกษาแล้วเลือกรูปอีกครั้ง');
+  await saveDetail('set_student_photo',{photo:canvas.toDataURL('image/jpeg',.82).split(',')[1]},'บันทึกรูปนักศึกษาแล้ว');
+});
+$('removePhoto').onclick=()=>{
+  if(confirm('นำรูปนักศึกษานี้ออก?')) run(()=>saveDetail('set_student_photo',{photo:null},'นำรูปนักศึกษาออกแล้ว'),$('removePhoto'));
+};
+function setupMenu(navId){
+  const buttons=[...$(navId).querySelectorAll('button[data-panel]')];
+  function showPanel(panelId){
+    for(const button of buttons){
+      const active=button.dataset.panel===panelId;
+      $(button.dataset.panel).hidden=!active;
+      if(active) button.setAttribute('aria-current','true');
+      else button.removeAttribute('aria-current');
+    }
+  }
+  for(const button of buttons) button.addEventListener('click',()=>showPanel(button.dataset.panel));
+  return showPanel;
 }
+const showStaffPanel=setupMenu('staffNav'),showStudentPanel=setupMenu('studentNav');
+$('studentNav').querySelector('[data-panel="historyPanel"]').addEventListener('click',()=>{
+  run(async()=>{const history=await api('student_history');if(role==='student'&&!$('student').hidden) renderHistory(history);});
+});
 async function sessionView(session) {
   $('workspace').hidden=true;$('staff').hidden=true;$('student').hidden=true;
   $('login').hidden=Boolean(session);$('logout').hidden=!session;
-  if(!session){records=[];visible=[];$('notice').textContent='';return;}
-  role=(await api('profile')).role;
-  $(role==='staff'?'staffSidebar':'workspace').prepend($('yearPanel'));
+  $('accountName').hidden=true;showPhoto('accountPhoto',null);
+  if(!session){$('historyYears').replaceChildren();$('historySummary').textContent='';records=[];visible=[];$('notice').textContent='';return;}
+  const profile=await api('profile');
+  role=profile.role;
+  $('signedInName').textContent=profile.full_name||'—';
+  $('signedInRole').textContent=role==='staff'?'ผู้ดูแลระบบ · Admin':'นักศึกษา · Student';
+  $('accountName').hidden=false;showPhoto('accountPhoto',profile.photo);
+  $(role==='staff'?'staffSidebar':'studentSidebar').prepend($('yearPanel'));
   if(role==='staff') showStaffPanel('reportPanel');
+  else{
+    const history=await api('student_history');
+    $('year').value=history.current_year;
+    showStudentPanel('guardianPanel');renderHistory(history);
+  }
   await refresh();
   $('workspace').hidden=false;$('staff').hidden=role!=='staff';$('student').hidden=role!=='student';
 }

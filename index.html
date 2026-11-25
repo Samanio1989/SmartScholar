@@ -102,6 +102,8 @@ input[type=number]{width:125px}button{background:#17614f;color:white;border-colo
 <form id="assign"><label>ประเภททุน<select name="kind" required></select></label>
 <label>รหัสนักศึกษา (คั่นด้วยบรรทัดใหม่หรือจุลภาค)<textarea required name="codes" rows="3"></textarea></label>
 <button>เพิ่มรายชื่อ</button></form>
+<div id="assignResult" role="status" hidden><p id="assignSummary"></p>
+<p id="assignMissing" style="overflow-wrap:anywhere" hidden></p></div>
 <label>ค้นหารายชื่อทุนเพื่อแก้ไขหรือลบ<input id="rosterSearch" type="search" placeholder="กรอกรหัสหรือชื่อ–สกุล"></label>
 <p id="rosterCount" class="summary-line"></p>
 <div class="table responsive-table roster-table"><table role="table"><thead role="rowgroup"><tr role="row"><th scope="col" role="columnheader">นักศึกษา</th><th scope="col" role="columnheader">ประเภททุน</th><th scope="col" role="columnheader">จัดการรายชื่อ</th></tr></thead><tbody role="rowgroup" id="rosterRows"></tbody></table></div>
@@ -419,10 +421,18 @@ bind('guardian',async(data,form)=>{
 });
 bind('assign',async(data,form)=>{
   data.codes=[...new Set(data.codes.split(/[,\s]+/u).filter(Boolean))];
+  if(!data.codes.length) throw Error('กรุณาระบุรหัสนักศึกษา');
   const year=rosterYear();
-  const result=await api('assign',data,year);await refresh();
-  $('notice').textContent='เพิ่ม '+result.added+' ราย · มีข้อมูลทุนในปีนี้แล้ว '+(data.codes.length-result.added)+' ราย';
-  form.elements.codes.value='';
+  $('assignResult').hidden=true;
+  const result=await api('assign',data,year);
+  const missing=result.missing??[];
+  $('assignSummary').textContent='ปี '+year+' · เพิ่ม '+result.added+' ราย · มีทุนในปีนี้แล้ว '+
+    (result.existing??(data.codes.length-result.added))+' ราย · ไม่พบในทะเบียน '+missing.length+' รหัส';
+  $('assignMissing').textContent=missing.length?'รหัสที่ข้าม '+missing.join(', '):'';
+  $('assignMissing').hidden=!missing.length;
+  $('assignResult').hidden=false;
+  form.elements.codes.value=missing.join('\n');
+  if(result.added) await refresh();
 });
 function togglePolicyHours(){
   const form=$('rules').elements,reduced=form.mode.value==='reduce';

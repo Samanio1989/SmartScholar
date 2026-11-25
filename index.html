@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ระบบทุนการศึกษาต่อเนื่อง | ARU</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anuphan:wght@400;500;600;700&display=swap">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{color:#132b29;background:#f4f7f5;font-family:Anuphan,system-ui,sans-serif}*{box-sizing:border-box}body{margin:0}
+header{background:#103a34;color:#fff;padding:28px max(20px,calc((100vw - 1260px)/2));display:flex;justify-content:space-between;align-items:center;gap:16px}
+h1,h2,p{margin:0 0 10px}header p{color:#c0e3d7;margin:0}main{max-width:1300px;margin:auto;padding:24px}
+section,details,dialog{background:white;border:1px solid #dce6df;border-radius:16px;padding:20px;margin-bottom:16px}
+section#login{max-width:480px;margin:28px auto}summary{cursor:pointer;font-weight:700}
+form,.filters,.actions,.stats{display:flex;gap:12px;flex-wrap:wrap;align-items:end;margin:12px 0}#login form{display:grid}
+.stats>div{flex:1 1 160px;background:#e8f1ec;border-radius:12px;padding:14px}.stats strong{display:block;font-size:1.5rem}
+label{display:grid;gap:5px;font-size:.93rem}.check{display:flex;align-items:center}input,button,select,textarea{font:inherit;border-radius:8px;padding:8px 10px;border:1px solid #bfcfc6;max-width:100%}
+input[type=number]{width:125px}button{background:#17614f;color:white;border-color:#17614f;cursor:pointer}button.secondary{background:#fff;color:#164c40}button:disabled{opacity:.5}textarea{width:min(350px,75vw)}
+.table{overflow:auto}table{border-collapse:collapse;width:100%;text-align:left}th,td{padding:10px;border-bottom:1px solid #e0e9e4}th{background:#edf3ef;white-space:nowrap}td small{display:block;color:#4b655b}
+.badge{display:inline-block;border-radius:20px;background:#edf3ef;padding:4px 9px;white-space:nowrap}.fail,.suspended{color:#942e20;background:#ffebe5}.active,.pass{color:#165341;background:#dff4e8}
+#error{white-space:pre-wrap;color:#982820}#notice{color:#165341}dialog{width:min(850px,calc(100vw - 24px));max-height:90vh;overflow:auto;margin:auto}dialog::backdrop{background:#102e2ab0}#detailError{color:#982820}
+[hidden]{display:none!important}@media(max-width:600px){main{padding:12px}header{padding:20px 14px}h1{font-size:1.35rem}section,details{padding:13px}}
+</style></head>
+<body>
+<header><div><h1>ระบบทุนการศึกษาต่อเนื่อง</h1><p>กองพัฒนานักศึกษา · มหาวิทยาลัยราชภัฏพระนครศรีอยุธยา</p></div><button id="logout" class="secondary" hidden>ออกจากระบบ</button></header>
+<main>
+<p id="error" role="alert"></p><p id="notice" role="status"></p>
+<section id="login" hidden><h2>เข้าสู่ระบบ</h2><form id="loginForm">
+<label>อีเมล<input required type="email" autocomplete="username" name="email"></label>
+<label>รหัสผ่าน<input required name="password" type="password" autocomplete="current-password"></label>
+<button>เข้าสู่ระบบ</button></form></section>
+<div id="workspace" hidden>
+<section><div class="actions"><label>ปีการศึกษา<input id="year" type="number" value="2569" min="2500" max="2800" required></label><button id="reload" class="secondary">แสดงข้อมูล</button></div></section>
+<div id="staff" hidden>
+<details><summary>กำหนดรายชื่อผู้รับทุน</summary><form id="assign">
+<label>ประเภททุน<select name="kind" required></select></label><label>รหัสนักศึกษา (คั่นด้วยบรรทัดใหม่หรือจุลภาค)<textarea required name="codes" rows="3"></textarea></label><button>เพิ่มรายชื่อ</button></form></details>
+<details><summary>ตั้งเกณฑ์ชั่วโมงกิจกรรม</summary><form id="rules">
+<label>ประเภททุน<select name="kind" required></select></label><label>ชั่วโมงขั้นต่ำ<input type="number" min="0" max="999999" step=".01" name="hours" required></label><button>บันทึกเกณฑ์</button></form><p id="ruleInfo"></p></details>
+<section>
+<h2>รายชื่อนักศึกษาและรายงาน</h2>
+<div class="stats" id="stats"></div>
+<div class="filters" id="filters"></div>
+<div class="actions"><button class="secondary" id="export">ดาวน์โหลดรายงาน CSV</button><span id="count"></span></div>
+<div class="table"><table><thead><tr><th>รหัส / ชื่อ–สกุล</th><th>ชั้นปี / สาขาวิชา / คณะ</th><th>ทุนที่ได้รับ</th><th>ผลการเรียน</th><th>กิจกรรม</th><th>สถานะ</th><th>ข้อมูลรายบุคคล</th></tr></thead><tbody id="rows"></tbody></table></div>
+<div class="actions"><button id="prev" class="secondary">ก่อนหน้า</button><span id="page"></span><button id="next" class="secondary">ถัดไป</button></div>
+</section>
+</div>
+<section id="student" hidden>
+<h2>ข้อมูลทุนของฉัน</h2><div id="studentInfo"></div>
+<form id="guardian" hidden>
+<label>ชื่อ–สกุลผู้ปกครองผู้ลงนาม<input name="name" maxlength="160" required></label>
+<label>ความเกี่ยวข้อง<select name="relationship" required><option value="">เลือกความเกี่ยวข้อง</option><option value="father">บิดา</option><option value="mother">มารดา</option><option value="relative">ญาติผู้ปกครอง</option></select></label>
+<div id="relative" hidden><label>ระบุความเกี่ยวข้อง<input name="kinship" maxlength="100"></label>
+<label class="check"><input type="checkbox" name="parents_unavailable">ยืนยันว่าทั้งบิดาและมารดาไม่ได้ส่งเสียเลี้ยงดู</label></div>
+<button>บันทึกผู้ปกครอง</button></form></section>
+</div>
+</main>
+<dialog id="detail"><div class="actions"><button type="button" class="secondary" id="close">ปิด</button></div><h2 id="detailName"></h2><div id="detailInfo"></div><p id="detailError" role="alert"></p>
+<div id="edit">
+<form id="record">
+<label>ประเภททุน<select name="kind" required></select></label><label>สถานะที่บันทึก<select name="status" required></select></label>
+<label>GPA ภาคเรียนที่ 1<input name="gpa1" type="number" min="0" max="4" step=".01"></label>
+<label>หน่วยกิตที่คิด GPA ภาคเรียนที่ 1<input name="credits1" type="number" min=".01" max="999" step=".01"></label>
+<label>GPA ภาคเรียนที่ 2<input name="gpa2" type="number" min="0" max="4" step=".01"></label>
+<label>หน่วยกิตที่คิด GPA ภาคเรียนที่ 2<input name="credits2" type="number" min=".01" max="999" step=".01"></label>
+<label class="check"><input name="hours_final" type="checkbox">ยืนยันชั่วโมงกิจกรรมครบทั้งปี</label><button>บันทึกผลและสถานะ</button></form>
+<h2>รายการกิจกรรม</h2><form id="activity">
+<label>ชื่อกิจกรรม<input name="title" required maxlength="200"></label><label>วันที่<input name="date" type="date" required></label>
+<label>จำนวนชั่วโมง<input name="hours" type="number" min="0" max="99999" step=".01" required></label><button>บันทึกกิจกรรม</button></form>
+<div id="entries"></div></div></dialog>
+<script>
+'use strict';
+const projectUrl = 'YOUR_SUPABASE_URL';
+const publicKey = 'YOUR_SUPABASE_PUBLISHABLE_KEY';
+const $ = id => document.getElementById(id);
+const kinds = {network:'ทุนเครือข่ายสถาบันการศึกษา',half:'ทุนการศึกษาคนละครึ่งสำหรับผู้ที่มีความสามารถพิเศษ'};
+const states = {active:'รับทุน',suspended:'ระงับทุนทั้ง 2 ภาคเรียน',dismissed:'คัดออก',removed:'ให้ออก',student_resigned:'ลาออกจากการเป็นนักศึกษา',scholarship_resigned:'ลาออกจากทุน',unassigned:'ยังไม่ได้กำหนดทุน'};
+const outcomes = {pass:'ผ่าน',fail:'ไม่ผ่าน',pending:'รอสรุป'};
+const kin = {father:'บิดา',mother:'มารดา',relative:'ญาติผู้ปกครอง'};
+let db,role,records=[],visible=[],schoolYear=2569,selected,page=0,request=0;
+const perPage=40;
+function node(tag,value,cls) {
+  const el=document.createElement(tag);
+  if(value!=null) el.textContent=value;
+  if(cls) el.className=cls;
+  return el;
+}
+function options(select,values,placeholder) {
+  const old=select.value;
+  select.replaceChildren();
+  if(placeholder) select.add(new Option(placeholder,''));
+  for(const [value,label] of Object.entries(values)) select.add(new Option(label,value));
+  if([...select.options].some(option=>option.value===old)) select.value=old;
+}
+const payload=form=>Object.fromEntries(new FormData(form));
+async function api(op,data={},year=schoolYear) {
+  const response=await db.rpc('aru_scholarship_api',{op,y:year,data});
+  if(response.error) throw Error(response.error.message);
+  return response.data;
+}
+function run(action,button) {
+  const message=$('detail').open?$('detailError'):$('error');
+  message.textContent='';
+  if(button) button.disabled=true;
+  return Promise.resolve().then(action).catch(error=>{message.textContent=error.message;})
+    .finally(()=>{if(button) button.disabled=false;});
+}
+function bind(id,action) {
+  const form=$(id);
+  form.addEventListener('submit',event=>{
+    event.preventDefault();
+    run(()=>action(payload(form),form),event.submitter);
+  });
+}
+function describe(row) {
+  const reasons=[row.suspended_gpa?'เกรดเฉลี่ยต่ำกว่าเกณฑ์':'',row.suspended_hours?'ชั่วโมงกิจกรรมต่ำกว่าเกณฑ์':''].filter(Boolean).join(' และ ');
+  return [
+    row.student_code+' · '+row.full_name,
+    'ชั้นปี '+row.year_level+' · '+row.major+' · '+row.faculty,
+    (kinds[row.kind]||'ยังไม่ได้กำหนดทุน')+' · '+states[row.status],
+    row.status==='suspended'?'ผลการประเมินปี '+(schoolYear-1)+' · '+reasons:'',
+    row.guardian_name?'ผู้ปกครองผู้ลงนาม '+row.guardian_name+' ('+(row.kinship||kin[row.relationship])+')':'',
+    row.annual_gpa!=null?'GPA ประจำปี '+Number(row.annual_gpa).toFixed(2):'',
+    row.total_hours!=null?'กิจกรรม '+row.total_hours+' ชั่วโมง · เกณฑ์ '+(row.required_hours??'ยังไม่ได้กำหนด'):''
+  ].filter(Boolean).map(value=>node('p',value));
+}
+const filterSpec={
+  kind:['ประเภททุน',kinds],year_level:['ชั้นปี'],major:['สาขาวิชา'],faculty:['คณะ'],
+  gpa_result:['ผลการเรียน',outcomes],hours_result:['ผลการทำกิจกรรม',outcomes],status:['สถานะ',states]
+};
+const search=node('input');search.placeholder='ค้นหาชื่อหรือรหัสนักศึกษา';search.setAttribute('aria-label',search.placeholder);
+$('filters').append(search);
+for(const [key,[label]] of Object.entries(filterSpec)){
+  const wrapper=node('label',label),select=node('select');
+  select.id='filter_'+key;wrapper.append(select);$('filters').append(wrapper);
+}
+$('filters').addEventListener('input',()=>{page=0;renderTable();});
+function renderTable() {
+  const term=search.value.trim().toLowerCase();
+  visible=records.filter(row=>(row.student_code+' '+row.full_name).toLowerCase().includes(term)&&
+    Object.keys(filterSpec).every(key=>!$('filter_'+key).value||$('filter_'+key).value===row[key]));
+  const pages=Math.max(1,Math.ceil(visible.length/perPage));
+  page=Math.min(page,pages-1);
+  $('count').textContent='พบ '+visible.length+' รายการ';
+  $('page').textContent='หน้า '+(page+1)+' / '+pages;
+  $('prev').disabled=page===0;$('next').disabled=page+1>=pages;
+  $('rows').replaceChildren(...visible.slice(page*perPage,(page+1)*perPage).map(row=>{
+    const tr=node('tr'),person=node('td',row.student_code),faculty=node('td',row.faculty);
+    person.append(node('small',row.full_name));faculty.append(node('small','ชั้นปี '+row.year_level+' · '+row.major));
+    const status=node('td');status.append(node('span',states[row.status],'badge '+row.status));
+    const action=node('td'),button=node('button','เปิดข้อมูล','secondary');
+    button.onclick=()=>run(()=>openDetail(row.id),button);action.append(button);
+    tr.append(person,faculty,node('td',kinds[row.kind]||'—'),
+      node('td',row.annual_gpa==null?'—':Number(row.annual_gpa).toFixed(2)+' · '+outcomes[row.gpa_result]),
+      node('td',row.total_hours==null?'—':row.total_hours+' ชม. · '+outcomes[row.hours_result]),status,action);
+    return tr;
+  }));
+}
+async function refresh() {
+  if(!$('year').reportValidity()) return;
+  const version=++request, year=Number($('year').value);
+  const [rows,rules]=await Promise.all([api('list',{},year),role==='staff'?api('rules',{},year):[]]);
+  if(version!==request) return;
+  schoolYear=year;records=rows;
+  if(role==='staff'){
+    $('ruleInfo').textContent=Object.entries(kinds).map(([key,label])=>label+' '+(rules.find(item=>item.kind===key)?.required_hours??'ยังไม่ได้กำหนด')+
+      (rules.some(item=>item.kind===key)?' ชั่วโมง':'')).join(' · ');
+    for(const [key,[label,values]] of Object.entries(filterSpec)) {
+      const entries=[...new Set(records.map(row=>row[key]).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'th',{numeric:true}));
+      options($('filter_'+key),values||Object.fromEntries(entries.map(value=>[value,value])),label+'ทั้งหมด');
+    }
+    $('stats').replaceChildren(...[
+      ['นักศึกษาทั้งหมด',records.length],['รับทุน',records.filter(row=>row.status==='active').length],
+      ['ระงับทุน',records.filter(row=>row.status==='suspended').length]
+    ].map(([label,total])=>{const card=node('div',label);card.append(node('strong',total));return card;}));
+    renderTable();
+  } else {
+    const row=records[0],form=$('guardian');
+    $('studentInfo').replaceChildren(...(row?describe(row):[node('p','ปีการศึกษานี้ไม่มีรายชื่อรับทุน')]));
+    form.hidden=row?.status!=='active';
+    form.elements.name.value=row?.guardian_name||'';form.elements.relationship.value=row?.relationship||'';
+    form.elements.kinship.value=row?.kinship||'';form.elements.parents_unavailable.checked=row?.relationship==='relative';
+    updateRelative();
+  }
+}
+function updateRelative() {
+  const form=$('guardian'),relative=form.elements.relationship.value==='relative';
+  $('relative').hidden=!relative;form.elements.kinship.required=relative;form.elements.parents_unavailable.required=relative;
+}
+async function openDetail(id) {
+  const row=records.find(item=>item.id===id);
+  const entries=row.recorded_status?await api('activities',{student_id:id}):[];
+  selected=id;
+  $('detailName').textContent=row.full_name;$('detailInfo').replaceChildren(...describe(row));
+  $('detailError').textContent='';$('edit').hidden=!row.recorded_status;
+  const form=$('record');
+  if(row.recorded_status){
+    for(const key of ['kind','gpa1','gpa2','credits1','credits2']) form.elements[key].value=row[key]??'';
+    form.elements.status.value=row.recorded_status;form.elements.hours_final.checked=row.hours_final;
+  }
+  $('entries').replaceChildren(...entries.map(entry=>{
+    const line=node('div',entry.activity_date+' · '+entry.title+' · '+entry.hours+' ชั่วโมง','actions');
+    const button=node('button','ลบ','secondary');
+    button.onclick=()=>{if(confirm('ลบกิจกรรม '+entry.title+'?')) run(async()=>{
+      await api('remove_activity',{student_id:id,title:entry.title,date:entry.activity_date});await refresh();await openDetail(id);
+    },button);};line.append(button);return line;
+  }));
+  if(!$('detail').open) {$('activity').reset();$('detail').showModal();}
+}
+for(const id of ['assign','rules','record']) options($(id).elements.kind,kinds);
+options($('record').elements.status,Object.fromEntries(Object.entries(states).filter(([key])=>!['suspended','unassigned'].includes(key))));
+$('guardian').elements.relationship.onchange=updateRelative;
+$('reload').onclick=()=>run(refresh,$('reload'));
+$('prev').onclick=()=>{page--;renderTable();};
+$('next').onclick=()=>{page++;renderTable();};
+$('close').onclick=()=>$('detail').close();
+bind('guardian',async(data,form)=>{
+  data.parents_unavailable=form.elements.parents_unavailable.checked;
+  await api('guardian',data);await refresh();$('notice').textContent='บันทึกข้อมูลผู้ปกครองแล้ว';
+});
+bind('assign',async(data,form)=>{
+  data.codes=[...new Set(data.codes.split(/[,\s]+/u).filter(Boolean))];
+  const result=await api('assign',data);await refresh();
+  $('notice').textContent='เพิ่ม '+result.added+' ราย · มีข้อมูลทุนในปีนี้แล้ว '+(data.codes.length-result.added)+' ราย';
+  form.elements.codes.value='';
+});
+bind('rules',async data=>{await api('rule',data);await refresh();$('notice').textContent='บันทึกเกณฑ์ชั่วโมงแล้ว';});
+bind('record',async(data,form)=>{
+  data.student_id=selected;data.hours_final=form.elements.hours_final.checked;
+  for(const key of ['gpa1','gpa2','credits1','credits2']) if(data[key]==='') data[key]=null;
+  for(const term of [1,2]) if((data['gpa'+term]===null)!==(data['credits'+term]===null))
+    throw Error('กรุณากรอก GPA และหน่วยกิตของภาคเรียนที่ '+term+' ให้ครบคู่');
+  await api('record',data);await refresh();await openDetail(selected);$('notice').textContent='บันทึกผลและสถานะแล้ว';
+});
+bind('activity',async(data,form)=>{
+  data.student_id=selected;await api('activity',data);form.reset();await refresh();await openDetail(selected);
+});
+$('export').onclick=()=>{
+  const quote=value=>{const cell=String(value??'');return '"'+(/^[\s]*[=+\-@\t\r\n]/u.test(cell)?"'":'')+cell.replaceAll('"','""')+'"';};
+  const values=[['ปีการศึกษา','รหัสนักศึกษา','ชื่อ–สกุล','ชั้นปี','สาขาวิชา','คณะ','ทุน','GPA 1','GPA 2','GPA ประจำปี','ผลการเรียน','ชั่วโมงกิจกรรม','เกณฑ์ชั่วโมง','ผลกิจกรรม','สถานะ','ผู้ปกครอง','ความเกี่ยวข้อง'],
+    ...visible.filter(row=>row.kind).map(r=>[schoolYear,r.student_code,r.full_name,r.year_level,r.major,r.faculty,kinds[r.kind],
+      r.gpa1,r.gpa2,r.annual_gpa,outcomes[r.gpa_result],r.total_hours,r.required_hours,outcomes[r.hours_result],states[r.status],r.guardian_name,r.kinship||kin[r.relationship]])];
+  const url=URL.createObjectURL(new Blob(['\uFEFF'+values.map(row=>row.map(quote).join(',')).join('\r\n')],{type:'text/csv;charset=utf-8'}));
+  const link=node('a');link.href=url;link.download='ARU-scholarships-'+schoolYear+'.csv';link.click();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+};
+async function sessionView(session) {
+  $('workspace').hidden=true;$('staff').hidden=true;$('student').hidden=true;
+  $('login').hidden=Boolean(session);$('logout').hidden=!session;
+  if(!session){records=[];visible=[];$('notice').textContent='';return;}
+  role=(await api('profile')).role;
+  await refresh();
+  $('workspace').hidden=false;$('staff').hidden=role!=='staff';$('student').hidden=role!=='student';
+}
+bind('loginForm',async(data,form)=>{
+  const {data:auth,error}=await db.auth.signInWithPassword(data);
+  if(error) throw Error('เข้าสู่ระบบไม่สำเร็จ กรุณาตรวจสอบอีเมลและรหัสผ่าน');
+  form.reset();await sessionView(auth.session);
+});
+$('logout').onclick=()=>run(async()=>{
+  const {error}=await db.auth.signOut();if(error) throw error;await sessionView(null);
+},$('logout'));
+run(async()=>{
+  if(!projectUrl.startsWith('https://')||publicKey.startsWith('YOUR_')) throw Error('กรุณาตั้งค่า URL และ Publishable Key ของ Supabase ก่อนเปิดใช้งาน');
+  db=window.supabase.createClient(projectUrl,publicKey);
+  const {data,error}=await db.auth.getSession();if(error) throw error;
+  await sessionView(data.session);
+});
+</script></body></html>

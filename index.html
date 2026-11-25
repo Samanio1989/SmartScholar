@@ -5,8 +5,8 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root{color:#132b29;background:#f4f7f5;font-family:Anuphan,system-ui,sans-serif}*{box-sizing:border-box}body{margin:0}
-header{background:#103a34;color:#fff;padding:28px max(20px,calc((100vw - 1260px)/2));display:flex;justify-content:space-between;align-items:center;gap:16px}
-h1,h2,p{margin:0 0 10px}header p{color:#c0e3d7;margin:0}main{max-width:1300px;margin:auto;padding:24px}
+header{background:#103a34;color:#fff;padding:28px max(20px,calc((100vw - 1712px)/2));display:flex;justify-content:space-between;align-items:center;gap:16px}
+h1,h2,p{margin:0 0 10px}header p{color:#c0e3d7;margin:0}main{max-width:1760px;margin:auto;padding:24px}
 section,details,dialog{background:white;border:1px solid #dce6df;border-radius:16px;padding:20px;margin-bottom:16px}
 section#login{max-width:480px;margin:28px auto}
 form,.filters,.actions,.stats{display:flex;gap:12px;flex-wrap:wrap;align-items:end;margin:12px 0}#login form{display:grid}
@@ -35,6 +35,38 @@ input[type=number]{width:125px}button{background:#17614f;color:white;border-colo
   .staff-sidebar{position:static}
   .staff-nav{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
+
+#stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));align-items:stretch}
+#stats>div{min-width:0}
+#filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,205px),1fr))}
+#filters label,#filters input,#filters select{width:100%;min-width:0}
+.report-table table{table-layout:fixed}
+.report-table th,.report-table td{white-space:normal;overflow-wrap:anywhere;vertical-align:top}
+.report-table th:nth-child(1){width:15%}
+.report-table th:nth-child(2){width:21%}
+.report-table th:nth-child(3){width:15%}
+.report-table th:nth-child(9){width:10%}
+.report-table td button{white-space:normal}
+@media(max-width:1200px){
+  #stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .responsive-table{overflow:visible}
+  .responsive-table table,.responsive-table tbody{display:block}
+  .responsive-table thead{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+  .responsive-table tbody>tr{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 16px;border:1px solid #dce6df;border-radius:12px;margin-bottom:10px;padding:14px}
+  .responsive-table td{display:block;min-width:0;border:0;padding:0;overflow-wrap:anywhere}
+  .responsive-table td::before{content:attr(data-label);display:block;color:#496459;font-size:.82rem;font-weight:600;margin-bottom:3px}
+  .responsive-table td:first-child{font-weight:600}
+}
+@media(max-width:420px){
+  header{align-items:flex-start;gap:8px}
+  header #logout{flex-shrink:0}
+  #stats{gap:8px}
+  #stats>div{padding:10px}
+  #filters{grid-template-columns:minmax(0,1fr)}
+  .responsive-table tbody>tr{gap:10px;padding:10px}
+  .responsive-table td:last-child{grid-column:1/-1}
+  .responsive-table td:last-child button{margin:2px 0}
+}
 </style></head>
 <body>
 <header><div><h1>ระบบทุนการศึกษาต่อเนื่อง</h1><p>กองพัฒนานักศึกษา · มหาวิทยาลัยราชภัฏพระนครศรีอยุธยา</p></div><button id="logout" class="secondary" hidden>ออกจากระบบ</button></header>
@@ -61,7 +93,7 @@ input[type=number]{width:125px}button{background:#17614f;color:white;border-colo
 <button>เพิ่มรายชื่อ</button></form>
 <label>ค้นหารายชื่อทุนเพื่อแก้ไขหรือลบ<input id="rosterSearch" type="search" placeholder="กรอกรหัสหรือชื่อ–สกุล"></label>
 <p id="rosterCount" class="summary-line"></p>
-<div class="table"><table><thead><tr><th>นักศึกษา</th><th>ประเภททุน</th><th>จัดการรายชื่อ</th></tr></thead><tbody id="rosterRows"></tbody></table></div>
+<div class="table responsive-table roster-table"><table role="table"><thead role="rowgroup"><tr role="row"><th scope="col" role="columnheader">นักศึกษา</th><th scope="col" role="columnheader">ประเภททุน</th><th scope="col" role="columnheader">จัดการรายชื่อ</th></tr></thead><tbody role="rowgroup" id="rosterRows"></tbody></table></div>
 </section>
 <section id="rulesPanel" hidden><h2>เกณฑ์กิจกรรมและข้อยกเว้นรายปี</h2>
 <div class="table"><table><thead><tr><th>ชั้นปี</th><th>ทุนเครือข่าย</th><th>ทุนคนละครึ่ง</th></tr></thead><tbody>
@@ -84,7 +116,7 @@ input[type=number]{width:125px}button{background:#17614f;color:white;border-colo
 <div class="stats" id="stats"></div>
 <div class="filters" id="filters"></div>
 <div class="actions"><button class="secondary" id="export">ดาวน์โหลดรายงาน CSV</button><span id="count"></span></div>
-<div class="table"><table><thead><tr><th>รหัส / ชื่อ–สกุล</th><th>ชั้นปี / สาขาวิชา / คณะ</th><th>ทุนที่ได้รับ</th><th>ผลการเรียน</th><th>กิจกรรม</th><th>สถานะทุน</th><th>สถานะการศึกษา</th><th>ทุนปีถัดไป</th><th>ข้อมูลรายบุคคล</th></tr></thead><tbody id="rows"></tbody></table></div>
+<div class="table responsive-table report-table"><table role="table"><thead role="rowgroup"><tr role="row"><th scope="col" role="columnheader">รหัส / ชื่อ–สกุล</th><th scope="col" role="columnheader">ชั้นปี / สาขาวิชา / คณะ</th><th scope="col" role="columnheader">ทุนที่ได้รับ</th><th scope="col" role="columnheader">ผลการเรียน</th><th scope="col" role="columnheader">กิจกรรม</th><th scope="col" role="columnheader">สถานะทุน</th><th scope="col" role="columnheader">สถานะการศึกษา</th><th scope="col" role="columnheader">ทุนปีถัดไป</th><th scope="col" role="columnheader">ข้อมูลรายบุคคล</th></tr></thead><tbody role="rowgroup" id="rows"></tbody></table></div>
 <div class="actions"><button id="prev" class="secondary">ก่อนหน้า</button><span id="page"></span><button id="next" class="secondary">ถัดไป</button></div>
 </section>
 </div></div>
@@ -197,6 +229,15 @@ for(const [key,[label]] of Object.entries(filterSpec)){
   select.id='filter_'+key;wrapper.append(select);$('filters').append(wrapper);
 }
 $('filters').addEventListener('input',()=>{page=0;renderTable();});
+function labelTableRow(row, bodyId){
+  const headers=$(bodyId).closest('table').tHead.rows[0].cells;
+  row.setAttribute('role','row');
+  Array.from(row.cells).forEach((cell,index)=>{
+    cell.dataset.label=headers[index].textContent;
+    cell.setAttribute('role','cell');
+  });
+  return row;
+}
 function renderTable() {
   const term=search.value.trim().toLowerCase();
   visible=records.filter(row=>(row.student_code+' '+row.full_name).toLowerCase().includes(term)&&
@@ -215,7 +256,7 @@ function renderTable() {
     tr.append(person,faculty,node('td',kinds[row.kind]||'—'),
       node('td',[row.annual_gpa==null?'':Number(row.annual_gpa).toFixed(2),gradeOutcomes[row.gpa_result]].filter(Boolean).join(' · ')||'—'),
       node('td',row.total_hours==null?'—':row.total_hours+' ชม. · '+outcomes[row.hours_result]),status,node('td',studyStates[row.study_status]),node('td',nextStates[row.next_status]||'—'),action);
-    return tr;
+    return labelTableRow(tr,'rows');
   }));
 }
 function rosterYear(){
@@ -246,7 +287,7 @@ function renderRoster(){
       await api('roster_remove',{student_id:row.id},year);await refresh();
       $('notice').textContent='นำ '+row.full_name+' ออกจากรายชื่อทุนปี '+year+' แล้ว';
     },remove);
-    kind.append(select);actions.append(save,' ',remove);tr.append(person,kind,actions);return tr;
+    kind.append(select);actions.append(save,' ',remove);tr.append(person,kind,actions);return labelTableRow(tr,'rosterRows');
   }));
 }
 $('rosterSearch').addEventListener('input',renderRoster);

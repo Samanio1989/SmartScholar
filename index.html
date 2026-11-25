@@ -8,7 +8,7 @@
 header{background:#103a34;color:#fff;padding:28px max(20px,calc((100vw - 1260px)/2));display:flex;justify-content:space-between;align-items:center;gap:16px}
 h1,h2,p{margin:0 0 10px}header p{color:#c0e3d7;margin:0}main{max-width:1300px;margin:auto;padding:24px}
 section,details,dialog{background:white;border:1px solid #dce6df;border-radius:16px;padding:20px;margin-bottom:16px}
-section#login{max-width:480px;margin:28px auto}summary{cursor:pointer;font-weight:700}
+section#login{max-width:480px;margin:28px auto}
 form,.filters,.actions,.stats{display:flex;gap:12px;flex-wrap:wrap;align-items:end;margin:12px 0}#login form{display:grid}
 .stats>div{flex:1 1 160px;background:#e8f1ec;border-radius:12px;padding:14px}.stats strong{display:block;font-size:1.5rem}
 label{display:grid;gap:5px;font-size:.93rem}.check{display:flex;align-items:center}input,button,select,textarea{font:inherit;border-radius:8px;padding:8px 10px;border:1px solid #bfcfc6;max-width:100%}
@@ -16,7 +16,25 @@ input[type=number]{width:125px}button{background:#17614f;color:white;border-colo
 .table{overflow:auto}table{border-collapse:collapse;width:100%;text-align:left}th,td{padding:10px;border-bottom:1px solid #e0e9e4}th{background:#edf3ef;white-space:nowrap}td small{display:block;color:#4b655b}
 .badge{display:inline-block;border-radius:20px;background:#edf3ef;padding:4px 9px;white-space:nowrap}.fail,.suspended{color:#942e20;background:#ffebe5}.active,.pass{color:#165341;background:#dff4e8}
 #error{white-space:pre-wrap;color:#982820}#notice{color:#165341}dialog{width:min(850px,calc(100vw - 24px));max-height:90vh;overflow:auto;margin:auto}dialog::backdrop{background:#102e2ab0}#detailError{color:#982820}
-[hidden]{display:none!important}@media(max-width:600px){main{padding:12px}header{padding:20px 14px}h1{font-size:1.35rem}section,details{padding:13px}}
+.detail-panel{background:#f8fbf9;margin-top:14px}.detail-panel h3{margin:0 0 6px}.gpa-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;width:min(340px,100%)}.gpa-fields input{width:100%}.review-flags{display:grid;gap:4px;width:100%}.summary-line{margin:8px 0;color:#2e5849}#detailNotice{color:#165341}[hidden]{display:none!important}@media(max-width:600px){main{padding:12px}header{padding:20px 14px}h1{font-size:1.35rem}section,details{padding:13px}}
+.staff-layout{display:grid;grid-template-columns:245px minmax(0,1fr);gap:18px;align-items:start}
+.staff-sidebar{position:sticky;top:16px;min-width:0}
+.staff-sidebar #yearPanel{padding:14px;margin:0 0 12px}
+.staff-sidebar #yearPanel .actions{margin:0;gap:8px}
+.staff-sidebar #yearPanel input{width:100px}
+.staff-nav{display:grid;gap:4px;background:#fff;border:1px solid #dce6df;border-radius:16px;padding:8px}
+.staff-nav button{background:transparent;color:#164c40;text-align:left;border-color:transparent;overflow-wrap:anywhere}
+.staff-nav button:hover{background:#edf4ef}
+.staff-nav button[aria-current="true"]{background:#17614f;color:#fff}
+.staff-nav button:focus-visible{outline:2px solid #267860;outline-offset:2px}
+.staff-content{min-width:0}
+.staff-content section>h2{margin-bottom:14px}
+.staff-content select{min-width:0}
+@media(max-width:760px){
+  .staff-layout{grid-template-columns:minmax(0,1fr);gap:12px}
+  .staff-sidebar{position:static}
+  .staff-nav{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
 </style></head>
 <body>
 <header><div><h1>ระบบทุนการศึกษาต่อเนื่อง</h1><p>กองพัฒนานักศึกษา · มหาวิทยาลัยราชภัฏพระนครศรีอยุธยา</p></div><button id="logout" class="secondary" hidden>ออกจากระบบ</button></header>
@@ -27,21 +45,49 @@ input[type=number]{width:125px}button{background:#17614f;color:white;border-colo
 <label>รหัสผ่าน<input required name="password" type="password" autocomplete="current-password"></label>
 <button>เข้าสู่ระบบ</button></form></section>
 <div id="workspace" hidden>
-<section><div class="actions"><label>ปีการศึกษา<input id="year" type="number" value="2569" min="2500" max="2800" required></label><button id="reload" class="secondary">แสดงข้อมูล</button></div></section>
-<div id="staff" hidden>
-<details><summary>กำหนดรายชื่อผู้รับทุน</summary><form id="assign">
-<label>ประเภททุน<select name="kind" required></select></label><label>รหัสนักศึกษา (คั่นด้วยบรรทัดใหม่หรือจุลภาค)<textarea required name="codes" rows="3"></textarea></label><button>เพิ่มรายชื่อ</button></form></details>
-<details><summary>ตั้งเกณฑ์ชั่วโมงกิจกรรม</summary><form id="rules">
-<label>ประเภททุน<select name="kind" required></select></label><label>ชั่วโมงขั้นต่ำ<input type="number" min="0" max="999999" step=".01" name="hours" required></label><button>บันทึกเกณฑ์</button></form><p id="ruleInfo"></p></details>
-<section>
+<section id="yearPanel"><div class="actions"><label>ปีการศึกษา<input id="year" type="number" value="2569" min="2500" max="2800" required></label><button id="reload" class="secondary">แสดงข้อมูล</button></div></section>
+<div id="staff" class="staff-layout" hidden>
+<aside id="staffSidebar" class="staff-sidebar">
+<nav id="staffNav" class="staff-nav" aria-label="เมนูจัดการทุน">
+<button type="button" data-panel="reportPanel" aria-controls="reportPanel" aria-current="true">รายชื่อนักศึกษาและรายงาน</button>
+<button type="button" data-panel="rosterPanel" aria-controls="rosterPanel">กำหนดรายชื่อผู้รับทุน</button>
+<button type="button" data-panel="rulesPanel" aria-controls="rulesPanel">เกณฑ์กิจกรรมและข้อยกเว้นรายปี</button>
+<button type="button" data-panel="importPanel" aria-controls="importPanel">นำเข้ากิจกรรมเป็นกลุ่ม</button>
+</nav></aside>
+<div class="staff-content">
+<section id="rosterPanel" hidden><h2>กำหนดรายชื่อผู้รับทุน</h2>
+<form id="assign"><label>ประเภททุน<select name="kind" required></select></label>
+<label>รหัสนักศึกษา (คั่นด้วยบรรทัดใหม่หรือจุลภาค)<textarea required name="codes" rows="3"></textarea></label>
+<button>เพิ่มรายชื่อ</button></form>
+<label>ค้นหารายชื่อทุนเพื่อแก้ไขหรือลบ<input id="rosterSearch" type="search" placeholder="กรอกรหัสหรือชื่อ–สกุล"></label>
+<p id="rosterCount" class="summary-line"></p>
+<div class="table"><table><thead><tr><th>นักศึกษา</th><th>ประเภททุน</th><th>จัดการรายชื่อ</th></tr></thead><tbody id="rosterRows"></tbody></table></div>
+</section>
+<section id="rulesPanel" hidden><h2>เกณฑ์กิจกรรมและข้อยกเว้นรายปี</h2>
+<div class="table"><table><thead><tr><th>ชั้นปี</th><th>ทุนเครือข่าย</th><th>ทุนคนละครึ่ง</th></tr></thead><tbody>
+<tr><td>1</td><td>40 ชม.</td><td>20 ชม.</td></tr>
+<tr><td>2</td><td>40 ชม. หรือสะสม 80</td><td>20 ชม. หรือสะสม 40</td></tr>
+<tr><td>3</td><td>30 ชม. หรือสะสม 110</td><td>15 ชม. หรือสะสม 55</td></tr>
+<tr><td>4 ภาคเรียนที่ 1</td><td>10 ชม. หรือสะสม 120</td><td>5 ชม. หรือสะสม 60</td></tr>
+</tbody></table></div>
+<form id="rules">
+<label>ประเภททุน<select name="kind" required></select></label><label>ชั้นปี<select name="level" required><option>1</option><option>2</option><option>3</option><option>4</option></select></label>
+<label>การประเมิน<select name="mode"><option value="standard">ใช้เกณฑ์ปกติ</option><option value="reduce">กำหนดชั่วโมงเฉพาะปีนี้</option><option value="waive">ยกเว้นกิจกรรม ใช้ผลการเรียน</option></select></label>
+<label id="policyHours" hidden>ชั่วโมงที่กำหนด<input type="number" min="0" max="99999" step=".01" name="hours"></label><button>บันทึกเกณฑ์</button></form><p id="ruleInfo"></p></section>
+<section id="importPanel" hidden><h2>นำเข้ากิจกรรมเป็นกลุ่ม</h2>
+<p>เลือกปีการศึกษา แล้วอัปโหลด CSV หนึ่งแถวต่อกิจกรรมต่อคน ใช้วันที่ ค.ศ. รูปแบบ YYYY-MM-DD และระบุภาคเรียน 1 หรือ 2</p>
+<form id="importActivities"><label>ไฟล์กิจกรรม CSV<input name="file" type="file" accept=".csv,text/csv" required></label>
+<button>นำเข้ากิจกรรม</button><a download href="activity_import_template.csv">ดาวน์โหลดแบบฟอร์มตัวอย่าง CSV</a></form>
+</section>
+<section id="reportPanel">
 <h2>รายชื่อนักศึกษาและรายงาน</h2>
 <div class="stats" id="stats"></div>
 <div class="filters" id="filters"></div>
 <div class="actions"><button class="secondary" id="export">ดาวน์โหลดรายงาน CSV</button><span id="count"></span></div>
-<div class="table"><table><thead><tr><th>รหัส / ชื่อ–สกุล</th><th>ชั้นปี / สาขาวิชา / คณะ</th><th>ทุนที่ได้รับ</th><th>ผลการเรียน</th><th>กิจกรรม</th><th>สถานะ</th><th>ข้อมูลรายบุคคล</th></tr></thead><tbody id="rows"></tbody></table></div>
+<div class="table"><table><thead><tr><th>รหัส / ชื่อ–สกุล</th><th>ชั้นปี / สาขาวิชา / คณะ</th><th>ทุนที่ได้รับ</th><th>ผลการเรียน</th><th>กิจกรรม</th><th>สถานะทุน</th><th>สถานะการศึกษา</th><th>ทุนปีถัดไป</th><th>ข้อมูลรายบุคคล</th></tr></thead><tbody id="rows"></tbody></table></div>
 <div class="actions"><button id="prev" class="secondary">ก่อนหน้า</button><span id="page"></span><button id="next" class="secondary">ถัดไป</button></div>
 </section>
-</div>
+</div></div>
 <section id="student" hidden>
 <h2>ข้อมูลทุนของฉัน</h2><div id="studentInfo"></div>
 <form id="guardian" hidden>
@@ -53,27 +99,45 @@ input[type=number]{width:125px}button{background:#17614f;color:white;border-colo
 </div>
 </main>
 <dialog id="detail"><div class="actions"><button type="button" class="secondary" id="close">ปิด</button></div><h2 id="detailName"></h2><div id="detailInfo"></div><p id="detailError" role="alert"></p>
-<div id="edit">
-<form id="record">
-<label>ประเภททุน<select name="kind" required></select></label><label>สถานะที่บันทึก<select name="status" required></select></label>
+<p id="detailNotice" role="status"></p><div id="edit">
+<section class="detail-panel"><h3>สถานะการศึกษาและทุน</h3><form id="study">
+<label>ประเภททุน<select name="kind" required></select></label>
+<div>ชั้นปีในปีการศึกษานี้ <output id="computedLevel">—</output></div>
+<label>สถานะการศึกษา<select name="status" required></select></label>
+<label id="reasonField" hidden>เหตุผล<input name="reason" maxlength="500"></label><button>บันทึกสถานะการศึกษา</button></form></section>
+<section class="detail-panel"><h3>ผลการเรียน</h3><form id="record">
+<div class="gpa-fields">
 <label>GPA ภาคเรียนที่ 1<input name="gpa1" type="number" min="0" max="4" step=".01"></label>
-<label>GPA ภาคเรียนที่ 2<input name="gpa2" type="number" min="0" max="4" step=".01"></label>
-<label>GPAX ประจำปีการศึกษา<output id="gpaxPreview" aria-live="polite">รอ GPA ทั้งสองภาคเรียน</output></label>
-<label class="check"><input name="hours_final" type="checkbox">ยืนยันชั่วโมงกิจกรรมครบทั้งปี</label><button>บันทึกผลและสถานะ</button></form>
-<h2>รายการกิจกรรม</h2><form id="activity">
+<label>GPA ภาคเรียนที่ 2<input name="gpa2" type="number" min="0" max="4" step=".01"></label></div>
+<div class="summary-line"><strong>GPAX</strong> <output id="gpaxPreview" aria-live="polite">—</output><br><strong>ผลตรวจสอบ</strong> <output id="gradePreview" aria-live="polite">รอผลการเรียน</output></div>
+<div class="review-flags">
+<label class="check"><input name="grade_incomplete" type="checkbox">ผลการเรียนยังออกไม่ครบ</label>
+<label class="check"><input name="grade_wait_i" type="checkbox">รอแก้ I</label>
+<label class="check"><input name="grade_wait_submit" type="checkbox">รอส่งผลการเรียน</label>
+<label id="gradeDue" hidden>วันที่คาดว่าจะส่งผลการเรียน<input name="grade_due" type="date"></label>
+</div><button>บันทึกผลการเรียน</button></form></section>
+<section class="detail-panel"><h3>ผลการเข้าร่วมกิจกรรม</h3><p id="activitySummary" class="summary-line"></p>
+<form id="activity">
+<label>รหัสนักศึกษา<input name="code" readonly></label>
 <label>ชื่อกิจกรรม<input name="title" required maxlength="200"></label><label>วันที่<input name="date" type="date" required></label>
+<label>ภาคเรียน<select name="semester" required><option value="">เลือกภาคเรียน</option><option>1</option><option>2</option></select></label>
 <label>จำนวนชั่วโมง<input name="hours" type="number" min="0" max="99999" step=".01" required></label><button>บันทึกกิจกรรม</button></form>
-<div id="entries"></div></div></dialog>
+<div id="entries"></div>
+<form id="finalize"><label class="check"><input name="final" type="checkbox"><span id="finalizeLabel">ยืนยันยอดกิจกรรมครบทั้งปี</span></label><button>บันทึกผลกิจกรรม</button></form>
+</section></div></dialog>
 <script>
 'use strict';
 const projectUrl = 'https://uykuqjclrurlncdsfyst.supabase.co';
 const publicKey = 'sb_publishable_oOEQwdiNQr9lwdan7et1sQ_FmHpa9ps';
 const $ = id => document.getElementById(id);
 const kinds = {network:'ทุนเครือข่ายสถาบันการศึกษา',half:'ทุนการศึกษาคนละครึ่งสำหรับผู้ที่มีความสามารถพิเศษ'};
-const states = {active:'รับทุน',suspended:'ระงับทุนทั้ง 2 ภาคเรียน',dismissed:'คัดออก',removed:'ให้ออก',student_resigned:'ลาออกจากการเป็นนักศึกษา',scholarship_resigned:'ลาออกจากทุน',unassigned:'ยังไม่ได้กำหนดทุน'};
-const outcomes = {pass:'ผ่าน',fail:'ไม่ผ่าน',pending:'รอสรุป'};
+const states={active:'รับทุน',suspended:'ระงับทุน',revoked:'เพิกถอนทุน',pending:'รอประเมิน',unassigned:'ยังไม่ได้กำหนดทุน'};
+const studyStates={active:'กำลังศึกษา',dismissed:'คัดออก',removed:'ให้ออก',student_resigned:'ลาออกจากการเป็นนักศึกษา',scholarship_resigned:'ลาออกจากทุน'};
+const outcomes={pass:'ผ่าน',fail:'ไม่ผ่าน',pending:'รอสรุป'};
+const gradeOutcomes={...outcomes,pending:'รอผลการเรียน'};
+const nextStates={...states,active:'รับทุนการศึกษาปีการศึกษาถัดไป'};
 const kin = {father:'บิดา',mother:'มารดา',relative:'ญาติผู้ปกครอง'};
-let db,role,records=[],visible=[],schoolYear=2569,selected,page=0,request=0;
+let db,role,records=[],visible=[],schoolYear=2569,selected,policyRecords=[],page=0,request=0;
 const perPage=40;
 function node(tag,value,cls) {
   const el=document.createElement(tag);
@@ -112,17 +176,19 @@ function describe(row) {
   const reasons=[row.suspended_gpa?'เกรดเฉลี่ยต่ำกว่าเกณฑ์':'',row.suspended_hours?'ชั่วโมงกิจกรรมต่ำกว่าเกณฑ์':''].filter(Boolean).join(' และ ');
   return [
     row.student_code+' · '+row.full_name,
-    'ชั้นปี '+row.year_level+' · '+row.major+' · '+row.faculty,
+    'ชั้นปี '+(row.year_level??'—')+' · '+row.major+' · '+row.faculty,
     (kinds[row.kind]||'ยังไม่ได้กำหนดทุน')+' · '+states[row.status],
     row.status==='suspended'?'ผลการประเมินปี '+(schoolYear-1)+' · '+reasons:'',
+    'สถานะการศึกษา '+studyStates[row.study_status]+(row.study_reason?' · '+row.study_reason:''),
+    row.next_status?'ผลประเมินปี '+(schoolYear+1)+' · '+nextStates[row.next_status]:'',
     row.guardian_name?'ผู้ปกครองผู้ลงนาม '+row.guardian_name+' ('+(row.kinship||kin[row.relationship])+')':'',
     row.annual_gpa!=null?'GPAX ประจำปี '+Number(row.annual_gpa).toFixed(2):'',
-    row.total_hours!=null?'กิจกรรม '+row.total_hours+' ชั่วโมง · เกณฑ์ '+(row.required_hours??'ยังไม่ได้กำหนด'):''
+    row.total_hours!=null?'กิจกรรม '+row.activity_count+' รายการ · '+row.total_hours+' ชั่วโมง · '+outcomes[row.hours_result]:''
   ].filter(Boolean).map(value=>node('p',value));
 }
 const filterSpec={
   kind:['ประเภททุน',kinds],year_level:['ชั้นปี'],major:['สาขาวิชา'],faculty:['คณะ'],
-  gpa_result:['ผลการเรียน',outcomes],hours_result:['ผลการทำกิจกรรม',outcomes],status:['สถานะ',states]
+  gpa_result:['ผลการเรียน',gradeOutcomes],hours_result:['ผลการทำกิจกรรม',outcomes],status:['สถานะทุน',states],study_status:['สถานะการศึกษา',studyStates],next_status:['ทุนปีถัดไป',nextStates]
 };
 const search=node('input');search.placeholder='ค้นหาชื่อหรือรหัสนักศึกษา';search.setAttribute('aria-label',search.placeholder);
 $('filters').append(search);
@@ -142,16 +208,48 @@ function renderTable() {
   $('prev').disabled=page===0;$('next').disabled=page+1>=pages;
   $('rows').replaceChildren(...visible.slice(page*perPage,(page+1)*perPage).map(row=>{
     const tr=node('tr'),person=node('td',row.student_code),faculty=node('td',row.faculty);
-    person.append(node('small',row.full_name));faculty.append(node('small','ชั้นปี '+row.year_level+' · '+row.major));
+    person.append(node('small',row.full_name));faculty.append(node('small','ชั้นปี '+(row.year_level??'—')+' · '+row.major));
     const status=node('td');status.append(node('span',states[row.status],'badge '+row.status));
     const action=node('td'),button=node('button','เปิดข้อมูล','secondary');
     button.onclick=()=>run(()=>openDetail(row.id),button);action.append(button);
     tr.append(person,faculty,node('td',kinds[row.kind]||'—'),
-      node('td',row.annual_gpa==null?'—':Number(row.annual_gpa).toFixed(2)+' · '+outcomes[row.gpa_result]),
-      node('td',row.total_hours==null?'—':row.total_hours+' ชม. · '+outcomes[row.hours_result]),status,action);
+      node('td',[row.annual_gpa==null?'':Number(row.annual_gpa).toFixed(2),gradeOutcomes[row.gpa_result]].filter(Boolean).join(' · ')||'—'),
+      node('td',row.total_hours==null?'—':row.total_hours+' ชม. · '+outcomes[row.hours_result]),status,node('td',studyStates[row.study_status]),node('td',nextStates[row.next_status]||'—'),action);
     return tr;
   }));
 }
+function rosterYear(){
+  if(Number($('year').value)!==schoolYear) throw Error('กดแสดงข้อมูลสำหรับปีการศึกษาที่เลือกก่อนจัดการรายชื่อ');
+  return schoolYear;
+}
+function renderRoster(){
+  const term=$('rosterSearch').value.trim().toLowerCase();
+  const matches=records.filter(row=>row.kind&&(row.student_code+' '+row.full_name).toLowerCase().includes(term));
+  $('rosterCount').textContent='ปี '+schoolYear+' · พบ '+matches.length+' รายชื่อ'+
+    (matches.length>25?' · แสดง 25 รายการแรก ค้นหาด้วยชื่อหรือรหัสเพื่อดูรายการอื่น':'');
+  $('rosterRows').replaceChildren(...matches.slice(0,25).map(row=>{
+    const tr=node('tr'),person=node('td',row.student_code),kind=node('td'),actions=node('td');
+    person.append(node('small',row.full_name));
+    const select=node('select');
+    options(select,kinds);select.value=row.kind;
+    select.setAttribute('aria-label','ประเภททุนของ '+row.full_name);
+    const save=node('button','บันทึกประเภททุน','secondary'),remove=node('button','ลบรายชื่อ','secondary');
+    save.disabled=select.disabled=!row.has_award&&row.status!=='active';
+    save.onclick=()=>run(async()=>{
+      const year=rosterYear();
+      await api('roster_edit',{student_id:row.id,kind:select.value},year);await refresh();
+      $('notice').textContent='แก้ไขประเภททุนของ '+row.full_name+' ปี '+year+' แล้ว';
+    },save);
+    remove.onclick=()=>run(async()=>{
+      const year=rosterYear();
+      if(!confirm('นำ '+row.full_name+' ออกจากรายชื่อทุนปี '+year+'? ประวัติจะถูกเก็บไว้')) return;
+      await api('roster_remove',{student_id:row.id},year);await refresh();
+      $('notice').textContent='นำ '+row.full_name+' ออกจากรายชื่อทุนปี '+year+' แล้ว';
+    },remove);
+    kind.append(select);actions.append(save,' ',remove);tr.append(person,kind,actions);return tr;
+  }));
+}
+$('rosterSearch').addEventListener('input',renderRoster);
 async function refresh() {
   if(!$('year').reportValidity()) return;
   const version=++request, year=Number($('year').value);
@@ -159,17 +257,18 @@ async function refresh() {
   if(version!==request) return;
   schoolYear=year;records=rows;
   if(role==='staff'){
-    $('ruleInfo').textContent=Object.entries(kinds).map(([key,label])=>label+' '+(rules.find(item=>item.kind===key)?.required_hours??'ยังไม่ได้กำหนด')+
-      (rules.some(item=>item.kind===key)?' ชั่วโมง':'')).join(' · ');
+    policyRecords=rules;showPolicy();
     for(const [key,[label,values]] of Object.entries(filterSpec)) {
       const entries=[...new Set(records.map(row=>row[key]).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'th',{numeric:true}));
       options($('filter_'+key),values||Object.fromEntries(entries.map(value=>[value,value])),label+'ทั้งหมด');
     }
     $('stats').replaceChildren(...[
-      ['นักศึกษาทั้งหมด',records.length],['รับทุน',records.filter(row=>row.status==='active').length],
-      ['ระงับทุน',records.filter(row=>row.status==='suspended').length]
+      ['นักศึกษาทั้งหมด',records.length],
+      ['นักศึกษาที่รับทุนทั้งหมด',records.filter(row=>row.status==='active').length],
+      ['นักศึกษาที่ถูกระงับทุน',records.filter(row=>row.status==='suspended').length],
+      ['นักศึกษาที่ถูกเพิกถอนทุน',records.filter(row=>row.status==='revoked').length]
     ].map(([label,total])=>{const card=node('div',label);card.append(node('strong',total));return card;}));
-    renderTable();
+    renderTable();renderRoster();
   } else {
     const row=records[0],form=$('guardian');
     $('studentInfo').replaceChildren(...(row?describe(row):[node('p','ปีการศึกษานี้ไม่มีรายชื่อรับทุน')]));
@@ -189,23 +288,47 @@ async function openDetail(id) {
   selected=id;
   $('detailName').textContent=row.full_name;$('detailInfo').replaceChildren(...describe(row));
   $('detailError').textContent='';$('edit').hidden=!row.recorded_status;
-  const form=$('record');
+  const grade=$('record').elements,study=$('study').elements;
+  if(!$('detail').open){$('activity').reset();$('detailNotice').textContent='';}
+  $('activity').elements.code.value=row.student_code;
   if(row.recorded_status){
-    for(const key of ['kind','gpa1','gpa2']) form.elements[key].value=row[key]??'';
-    updateGpaxPreview();
-    form.elements.status.value=row.recorded_status;form.elements.hours_final.checked=row.hours_final;
+    for(const key of ['gpa1','gpa2','grade_due']) grade[key].value=row[key]??'';
+    for(const key of ['grade_incomplete','grade_wait_i']) grade[key].checked=Boolean(row[key]);
+    grade.grade_wait_submit.checked=Boolean(row.grade_due);
+    study.kind.value=row.kind;study.status.value=row.study_status;
+    study.reason.value=row.study_reason??'';$('computedLevel').textContent=row.year_level??'ระบุชั้นปีไม่ได้จากรหัส';
+    updateGpaxPreview();updateReason();
+    $('finalize').elements.final.checked=Boolean(row.hours_final);
+    $('finalizeLabel').textContent=row.award_level===4?'ยืนยันยอดกิจกรรมภาคเรียนที่ 1':'ยืนยันยอดกิจกรรมครบทั้งปี';
+    const criteria=row.activity_mode==='waive'?'ยกเว้นชั่วโมงกิจกรรม':
+      row.required_hours==null?'ยังไม่มีเกณฑ์กิจกรรมสำหรับชั้นปีนี้':
+      'เกณฑ์ '+row.required_hours+' ชม.'+(row.activity_mode!=='reduce'&&row.award_level>1?' หรือสะสม '+row.targets_cumulative_hours+' ชม.':'');
+    $('activitySummary').textContent=(row.activity_count??0)+' กิจกรรม · ทั้งปี '+(row.total_hours??0)+' ชม. · ช่วงประเมิน '+
+      (row.period_hours??0)+' ชม. · สะสม '+(row.cumulative_hours??0)+' ชม. · '+criteria+' · '+(outcomes[row.hours_result]||'รอสรุป');
   }
   $('entries').replaceChildren(...entries.map(entry=>{
-    const line=node('div',entry.activity_date+' · '+entry.title+' · '+entry.hours+' ชั่วโมง','actions');
+    const line=node('div',entry.activity_date+' · '+entry.title+' · '+entry.hours+' ชั่วโมง · '+(entry.semester?'ภาคเรียน '+entry.semester:'ยังไม่ระบุภาคเรียน'),'actions');
+    const edit=node('button','แก้ไขชั่วโมง/ภาคเรียน','secondary');
+    edit.onclick=()=>{
+      const form=$('activity').elements;
+      form.title.value=entry.title;form.date.value=entry.activity_date;form.hours.value=entry.hours;form.semester.value=entry.semester??'';
+      form.semester.focus();
+    };
+    line.append(edit);
     const button=node('button','ลบ','secondary');
     button.onclick=()=>{if(confirm('ลบกิจกรรม '+entry.title+'?')) run(async()=>{
       await api('remove_activity',{student_id:id,title:entry.title,date:entry.activity_date});await refresh();await openDetail(id);
     },button);};line.append(button);return line;
   }));
-  if(!$('detail').open) {$('activity').reset();$('detail').showModal();}
+  if(!$('detail').open) $('detail').showModal();
 }
-for(const id of ['assign','rules','record']) options($(id).elements.kind,kinds);
-options($('record').elements.status,Object.fromEntries(Object.entries(states).filter(([key])=>!['suspended','unassigned'].includes(key))));
+for(const id of ['assign','rules','study']) options($(id).elements.kind,kinds);
+options($('study').elements.status,studyStates);
+function updateReason(){
+  const {status,reason}=$('study').elements;
+  $('reasonField').hidden=status.value==='active';reason.required=status.value==='scholarship_resigned';
+}
+$('study').elements.status.onchange=updateReason;
 $('guardian').elements.relationship.onchange=updateRelative;
 $('reload').onclick=()=>run(refresh,$('reload'));
 $('prev').onclick=()=>{page--;renderTable();};
@@ -217,41 +340,113 @@ bind('guardian',async(data,form)=>{
 });
 bind('assign',async(data,form)=>{
   data.codes=[...new Set(data.codes.split(/[,\s]+/u).filter(Boolean))];
-  const result=await api('assign',data);await refresh();
+  const year=rosterYear();
+  const result=await api('assign',data,year);await refresh();
   $('notice').textContent='เพิ่ม '+result.added+' ราย · มีข้อมูลทุนในปีนี้แล้ว '+(data.codes.length-result.added)+' ราย';
   form.elements.codes.value='';
 });
-bind('rules',async data=>{await api('rule',data);await refresh();$('notice').textContent='บันทึกเกณฑ์ชั่วโมงแล้ว';});
+function togglePolicyHours(){
+  const form=$('rules').elements,reduced=form.mode.value==='reduce';
+  $('policyHours').hidden=!reduced;form.hours.required=reduced;form.hours.disabled=!reduced;
+}
+function showPolicy(){
+  const form=$('rules').elements;
+  const row=policyRecords.find(rule=>rule.kind===form.kind.value&&String(rule.award_level)===form.level.value);
+  form.mode.value=row?.mode||'standard';form.hours.value=row?.hours??'';togglePolicyHours();
+  $('ruleInfo').textContent=policyRecords.length?'ข้อยกเว้นที่บันทึก '+policyRecords.length+' รายการในปี '+schoolYear:'ปีนี้ใช้เกณฑ์มาตรฐานทุกประเภททุนและชั้นปี';
+}
+$('rules').elements.kind.onchange=showPolicy;$('rules').elements.level.onchange=showPolicy;
+$('rules').elements.mode.onchange=togglePolicyHours;
+bind('rules',async data=>{await api('rule',data);await refresh();$('notice').textContent='บันทึกเกณฑ์กิจกรรมปี '+schoolYear+' แล้ว';});
 function updateGpaxPreview() {
-  const {gpa1,gpa2}=$('record').elements;
+  const grade=$('record').elements,{gpa1,gpa2}=grade;
   const ready=[gpa1,gpa2].every(input=>input.value!==''&&input.validity.valid);
   const totalHundredths=Math.round(gpa1.valueAsNumber*100)+Math.round(gpa2.valueAsNumber*100);
-  $('gpaxPreview').textContent=ready?(Math.round(totalHundredths/2)/100).toFixed(2):'รอ GPA ทั้งสองภาคเรียน';
+  const gpax=Math.round(totalHundredths/2)/100;
+  const waiting=grade.grade_wait_submit.checked;
+  $('gradeDue').hidden=!waiting;grade.grade_due.required=waiting;grade.grade_due.disabled=!waiting;
+  const blocked=!ready||grade.grade_incomplete.checked||grade.grade_wait_i.checked||waiting;
+  const kind=records.find(row=>row.id===selected)?.kind;
+  const minimum=kind==='network'?2.50:2.00;
+  $('gpaxPreview').textContent=ready?gpax.toFixed(2):'—';
+  $('gradePreview').textContent=blocked?'รอผลการเรียน':(gpax>=minimum?'ผ่าน':'ไม่ผ่าน')+' · เกณฑ์ '+minimum.toFixed(2);
 }
-$('record').elements.gpa1.addEventListener('input',updateGpaxPreview);
-$('record').elements.gpa2.addEventListener('input',updateGpaxPreview);
+$('record').addEventListener('input',updateGpaxPreview);
+async function saveDetail(op,data,message){
+  const id=selected;await api(op,{...data,student_id:id});await refresh();await openDetail(id);
+  $('detailNotice').textContent=message;
+}
 bind('record',async(data,form)=>{
-  data.student_id=selected;data.hours_final=form.elements.hours_final.checked;
-  for(const key of ['gpa1','gpa2']) if(data[key]==='') data[key]=null;
-  await api('record',data);await refresh();await openDetail(selected);$('notice').textContent='บันทึกผลและสถานะแล้ว';
+  for(const key of ['gpa1','gpa2','grade_due']) data[key]=data[key]||null;
+  for(const key of ['grade_incomplete','grade_wait_i']) data[key]=form.elements[key].checked;
+  await saveDetail('record',data,'บันทึกผลการเรียนแล้ว');
 });
+bind('study',async data=>saveDetail('study',data,'บันทึกสถานะการศึกษาแล้ว'));
+bind('finalize',async(data,form)=>saveDetail('finalize_hours',{final:form.elements.final.checked},'บันทึกผลกิจกรรมแล้ว'));
 bind('activity',async(data,form)=>{
-  data.student_id=selected;await api('activity',data);form.reset();await refresh();await openDetail(selected);
+  await saveDetail('activity',data,'บันทึกกิจกรรมแล้ว');form.reset();
+  form.elements.code.value=records.find(row=>row.id===selected)?.student_code||'';
+});
+function parseActivityCsv(text){
+  const rows=[],fields=['student_code','activity_name','activity_date','hours','semester'];
+  const lines=text.replace(/^\uFEFF/u,'').trim().split(/\r?\n/u);
+  const seen=new Set();
+  for(const [index,line] of lines.entries()){
+    if(!line.trim()) continue;
+    if(!/^(?:"(?:[^"]|"")*"|[^",]*)(?:,(?:"(?:[^"]|"")*"|[^",]*)){4}$/u.test(line))
+      throw Error('รูปแบบ CSV ไม่ถูกต้องที่แถว '+(index+1));
+    const cells=[...line.matchAll(/(?:^|,)(?:"((?:[^"]|"")*)"|([^",]*))/gu)]
+      .map(match=>(match[1]?.replaceAll('""','"')??match[2]).trim());
+    if(index===0){
+      if(cells.join(',')!==fields.join(',')) throw Error('กรุณาใช้ชื่อคอลัมน์ตามแบบฟอร์มตัวอย่าง');
+      continue;
+    }
+    const [code,title,activity_date,hours,semester]=cells;
+    if(!code||!title||title.length>200||!/^\d{4}-\d{2}-\d{2}$/u.test(activity_date)
+      ||!/^\d{1,5}(?:\.\d{1,2})?$/u.test(hours)||Number(hours)>99999||!/^[12]$/u.test(semester))
+      throw Error('ข้อมูลกิจกรรมไม่ถูกต้องที่แถว '+(index+1));
+    const key=JSON.stringify([code,title,activity_date]);
+    if(seen.has(key)) throw Error('พบรหัสและกิจกรรมซ้ำในไฟล์ที่แถว '+(index+1));
+    seen.add(key);rows.push({code,title,activity_date,hours:Number(hours),semester:Number(semester)});
+  }
+  if(!rows.length||rows.length>5000) throw Error('นำเข้าได้ครั้งละ 1–5,000 แถว');
+  return rows;
+}
+bind('importActivities',async(data,form)=>{
+  const year=schoolYear;
+  if(Number($('year').value)!==year) throw Error('กดแสดงข้อมูลสำหรับปีการศึกษาที่เลือกก่อนนำเข้า');
+  const rows=parseActivityCsv(await data.file.text());
+  const result=await api('import_activities',{rows},year);await refresh();form.reset();
+  $('notice').textContent='นำเข้ากิจกรรมปี '+year+' สำเร็จ '+result.added+' รายการ';
 });
 $('export').onclick=()=>{
   const quote=value=>{const cell=String(value??'');return '"'+(/^[\s]*[=+\-@\t\r\n]/u.test(cell)?"'":'')+cell.replaceAll('"','""')+'"';};
-  const values=[['ปีการศึกษา','รหัสนักศึกษา','ชื่อ–สกุล','ชั้นปี','สาขาวิชา','คณะ','ทุน','GPA 1','GPA 2','GPAX ประจำปี','ผลการเรียน','ชั่วโมงกิจกรรม','เกณฑ์ชั่วโมง','ผลกิจกรรม','สถานะ','ผู้ปกครอง','ความเกี่ยวข้อง'],
+  const values=[['ปีการศึกษา','รหัสนักศึกษา','ชื่อ–สกุล','ชั้นปี','สาขาวิชา','คณะ','ทุน','GPA 1','GPA 2','GPAX ประจำปี','ผลการเรียน','ชั่วโมงกิจกรรม','เกณฑ์ชั่วโมง','ผลกิจกรรม','ชั่วโมงสะสม','จำนวนกิจกรรม','สถานะทุน','สถานะการศึกษา','เหตุผล','สถานะทุนปีถัดไป','ผู้ปกครอง','ความเกี่ยวข้อง'],
     ...visible.filter(row=>row.kind).map(r=>[schoolYear,r.student_code,r.full_name,r.year_level,r.major,r.faculty,kinds[r.kind],
-      r.gpa1,r.gpa2,r.annual_gpa,outcomes[r.gpa_result],r.total_hours,r.required_hours,outcomes[r.hours_result],states[r.status],r.guardian_name,r.kinship||kin[r.relationship]])];
+      r.gpa1,r.gpa2,r.annual_gpa,gradeOutcomes[r.gpa_result],r.total_hours,r.required_hours,outcomes[r.hours_result],r.cumulative_hours,r.activity_count,states[r.status],studyStates[r.study_status],r.study_reason,nextStates[r.next_status],r.guardian_name,r.kinship||kin[r.relationship]])];
   const url=URL.createObjectURL(new Blob(['\uFEFF'+values.map(row=>row.map(quote).join(',')).join('\r\n')],{type:'text/csv;charset=utf-8'}));
   const link=node('a');link.href=url;link.download='ARU-scholarships-'+schoolYear+'.csv';link.click();
   setTimeout(()=>URL.revokeObjectURL(url),1000);
 };
+const staffMenu=[...$('staffNav').querySelectorAll('button[data-panel]')];
+function showStaffPanel(panelId) {
+  for(const button of staffMenu){
+    const active=button.dataset.panel===panelId;
+    $(button.dataset.panel).hidden=!active;
+    if(active) button.setAttribute('aria-current','true');
+    else button.removeAttribute('aria-current');
+  }
+}
+for(const button of staffMenu){
+  button.addEventListener('click',()=>showStaffPanel(button.dataset.panel));
+}
 async function sessionView(session) {
   $('workspace').hidden=true;$('staff').hidden=true;$('student').hidden=true;
   $('login').hidden=Boolean(session);$('logout').hidden=!session;
   if(!session){records=[];visible=[];$('notice').textContent='';return;}
   role=(await api('profile')).role;
+  $(role==='staff'?'staffSidebar':'workspace').prepend($('yearPanel'));
+  if(role==='staff') showStaffPanel('reportPanel');
   await refresh();
   $('workspace').hidden=false;$('staff').hidden=role!=='staff';$('student').hidden=role!=='student';
 }

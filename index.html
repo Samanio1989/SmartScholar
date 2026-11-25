@@ -57,9 +57,8 @@ input[type=number]{width:125px}button{background:#17614f;color:white;border-colo
 <form id="record">
 <label>ประเภททุน<select name="kind" required></select></label><label>สถานะที่บันทึก<select name="status" required></select></label>
 <label>GPA ภาคเรียนที่ 1<input name="gpa1" type="number" min="0" max="4" step=".01"></label>
-<label>หน่วยกิตที่คิด GPA ภาคเรียนที่ 1<input name="credits1" type="number" min=".01" max="999" step=".01"></label>
 <label>GPA ภาคเรียนที่ 2<input name="gpa2" type="number" min="0" max="4" step=".01"></label>
-<label>หน่วยกิตที่คิด GPA ภาคเรียนที่ 2<input name="credits2" type="number" min=".01" max="999" step=".01"></label>
+<label>GPAX ประจำปีการศึกษา<output id="gpaxPreview" aria-live="polite">รอ GPA ทั้งสองภาคเรียน</output></label>
 <label class="check"><input name="hours_final" type="checkbox">ยืนยันชั่วโมงกิจกรรมครบทั้งปี</label><button>บันทึกผลและสถานะ</button></form>
 <h2>รายการกิจกรรม</h2><form id="activity">
 <label>ชื่อกิจกรรม<input name="title" required maxlength="200"></label><label>วันที่<input name="date" type="date" required></label>
@@ -117,7 +116,7 @@ function describe(row) {
     (kinds[row.kind]||'ยังไม่ได้กำหนดทุน')+' · '+states[row.status],
     row.status==='suspended'?'ผลการประเมินปี '+(schoolYear-1)+' · '+reasons:'',
     row.guardian_name?'ผู้ปกครองผู้ลงนาม '+row.guardian_name+' ('+(row.kinship||kin[row.relationship])+')':'',
-    row.annual_gpa!=null?'GPA ประจำปี '+Number(row.annual_gpa).toFixed(2):'',
+    row.annual_gpa!=null?'GPAX ประจำปี '+Number(row.annual_gpa).toFixed(2):'',
     row.total_hours!=null?'กิจกรรม '+row.total_hours+' ชั่วโมง · เกณฑ์ '+(row.required_hours??'ยังไม่ได้กำหนด'):''
   ].filter(Boolean).map(value=>node('p',value));
 }
@@ -192,7 +191,8 @@ async function openDetail(id) {
   $('detailError').textContent='';$('edit').hidden=!row.recorded_status;
   const form=$('record');
   if(row.recorded_status){
-    for(const key of ['kind','gpa1','gpa2','credits1','credits2']) form.elements[key].value=row[key]??'';
+    for(const key of ['kind','gpa1','gpa2']) form.elements[key].value=row[key]??'';
+    updateGpaxPreview();
     form.elements.status.value=row.recorded_status;form.elements.hours_final.checked=row.hours_final;
   }
   $('entries').replaceChildren(...entries.map(entry=>{
@@ -222,11 +222,17 @@ bind('assign',async(data,form)=>{
   form.elements.codes.value='';
 });
 bind('rules',async data=>{await api('rule',data);await refresh();$('notice').textContent='บันทึกเกณฑ์ชั่วโมงแล้ว';});
+function updateGpaxPreview() {
+  const {gpa1,gpa2}=$('record').elements;
+  const ready=[gpa1,gpa2].every(input=>input.value!==''&&input.validity.valid);
+  const totalHundredths=Math.round(gpa1.valueAsNumber*100)+Math.round(gpa2.valueAsNumber*100);
+  $('gpaxPreview').textContent=ready?(Math.round(totalHundredths/2)/100).toFixed(2):'รอ GPA ทั้งสองภาคเรียน';
+}
+$('record').elements.gpa1.addEventListener('input',updateGpaxPreview);
+$('record').elements.gpa2.addEventListener('input',updateGpaxPreview);
 bind('record',async(data,form)=>{
   data.student_id=selected;data.hours_final=form.elements.hours_final.checked;
-  for(const key of ['gpa1','gpa2','credits1','credits2']) if(data[key]==='') data[key]=null;
-  for(const term of [1,2]) if((data['gpa'+term]===null)!==(data['credits'+term]===null))
-    throw Error('กรุณากรอก GPA และหน่วยกิตของภาคเรียนที่ '+term+' ให้ครบคู่');
+  for(const key of ['gpa1','gpa2']) if(data[key]==='') data[key]=null;
   await api('record',data);await refresh();await openDetail(selected);$('notice').textContent='บันทึกผลและสถานะแล้ว';
 });
 bind('activity',async(data,form)=>{
@@ -234,7 +240,7 @@ bind('activity',async(data,form)=>{
 });
 $('export').onclick=()=>{
   const quote=value=>{const cell=String(value??'');return '"'+(/^[\s]*[=+\-@\t\r\n]/u.test(cell)?"'":'')+cell.replaceAll('"','""')+'"';};
-  const values=[['ปีการศึกษา','รหัสนักศึกษา','ชื่อ–สกุล','ชั้นปี','สาขาวิชา','คณะ','ทุน','GPA 1','GPA 2','GPA ประจำปี','ผลการเรียน','ชั่วโมงกิจกรรม','เกณฑ์ชั่วโมง','ผลกิจกรรม','สถานะ','ผู้ปกครอง','ความเกี่ยวข้อง'],
+  const values=[['ปีการศึกษา','รหัสนักศึกษา','ชื่อ–สกุล','ชั้นปี','สาขาวิชา','คณะ','ทุน','GPA 1','GPA 2','GPAX ประจำปี','ผลการเรียน','ชั่วโมงกิจกรรม','เกณฑ์ชั่วโมง','ผลกิจกรรม','สถานะ','ผู้ปกครอง','ความเกี่ยวข้อง'],
     ...visible.filter(row=>row.kind).map(r=>[schoolYear,r.student_code,r.full_name,r.year_level,r.major,r.faculty,kinds[r.kind],
       r.gpa1,r.gpa2,r.annual_gpa,outcomes[r.gpa_result],r.total_hours,r.required_hours,outcomes[r.hours_result],states[r.status],r.guardian_name,r.kinship||kin[r.relationship]])];
   const url=URL.createObjectURL(new Blob(['\uFEFF'+values.map(row=>row.map(quote).join(',')).join('\r\n')],{type:'text/csv;charset=utf-8'}));

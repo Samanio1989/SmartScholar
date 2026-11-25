@@ -15,6 +15,7 @@ label{display:grid;gap:5px;font-size:.93rem}.check{display:flex;align-items:cent
 input[type=number]{width:125px}button{background:#17614f;color:white;border-color:#17614f;cursor:pointer}button.secondary{background:#fff;color:#164c40}button:disabled{opacity:.5}textarea{width:min(350px,75vw)}
 .table{overflow:auto}table{border-collapse:collapse;width:100%;text-align:left}th,td{padding:10px;border-bottom:1px solid #e0e9e4}th{background:#edf3ef;white-space:nowrap}td small{display:block;color:#4b655b}
 .badge{display:inline-block;border-radius:20px;background:#edf3ef;padding:4px 9px;white-space:nowrap}.fail,.suspended{color:#942e20;background:#ffebe5}.active,.pass{color:#165341;background:#dff4e8}
+.result-badge{white-space:normal;font-weight:600}.result-badge.pending{color:#8a3c06;background:#fff0d7}
 #error{white-space:pre-wrap;color:#982820}#notice{color:#165341}dialog{width:min(850px,calc(100vw - 24px));max-height:90vh;overflow:auto;margin:auto}dialog::backdrop{background:#102e2ab0}#detailError{color:#982820}
 .detail-panel{background:#f8fbf9;margin-top:14px}.detail-panel h3{margin:0 0 6px}.gpa-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;width:min(340px,100%)}.gpa-fields input{width:100%}.review-flags{display:grid;gap:4px;width:100%}.summary-line{margin:8px 0;color:#2e5849}#detailNotice{color:#165341}[hidden]{display:none!important}@media(max-width:600px){main{padding:12px}header{padding:20px 14px}h1{font-size:1.35rem}section,details{padding:13px}}
 .staff-layout{display:grid;grid-template-columns:245px minmax(0,1fr);gap:18px;align-items:start}
@@ -194,7 +195,14 @@ const states={active:'รับทุน',suspended:'ระงับทุน',r
 const studyStates={active:'กำลังศึกษา',dismissed:'คัดออก',removed:'ให้ออก',student_resigned:'ลาออกจากการเป็นนักศึกษา',scholarship_resigned:'ลาออกจากทุน'};
 const outcomes={pass:'ผ่าน',fail:'ไม่ผ่าน',pending:'รอสรุป'};
 const gradeOutcomes={...outcomes,pending:'รอผลการเรียน'};
-const nextStates={...states,active:'รับทุนการศึกษาปีการศึกษาถัดไป'};
+const nextStates={...states,active:'รับทุนการศึกษาปีการศึกษาถัดไป',completed:'ครบปีการศึกษา'};
+function displayNextStatus(row){
+  return row.kind&&row.status==='active'&&Number(row.award_level??row.year_level)===4?'completed':row.next_status;
+}
+function nextStatusLabel(row,year){
+  const status=displayNextStatus(row);
+  return status==='completed'?'ครบปีการศึกษาในปีการศึกษา '+year:nextStates[status];
+}
 const kin = {father:'บิดา',mother:'มารดา',relative:'ญาติผู้ปกครอง'};
 let db,role,records=[],visible=[],schoolYear=2569,selected,policyRecords=[],page=0,request=0;
 const perPage=40;
@@ -239,7 +247,8 @@ function describe(row) {
     (kinds[row.kind]||'ยังไม่ได้กำหนดทุน')+' · '+states[row.status],
     row.status==='suspended'?'ผลการประเมินปี '+(schoolYear-1)+' · '+reasons:'',
     'สถานะการศึกษา '+studyStates[row.study_status]+(row.study_reason?' · '+row.study_reason:''),
-    row.next_status?'ผลประเมินปี '+(schoolYear+1)+' · '+nextStates[row.next_status]:'',
+    displayNextStatus(row)==='completed'?nextStatusLabel(row,schoolYear):
+      row.next_status?'ผลประเมินปี '+(schoolYear+1)+' · '+nextStatusLabel(row,schoolYear):'',
     row.guardian_name?'ผู้ปกครองผู้ลงนาม '+row.guardian_name+' ('+(row.kinship||kin[row.relationship])+')':'',
     row.annual_gpa!=null?'GPAX ประจำปี '+Number(row.annual_gpa).toFixed(2):'',
     row.total_hours!=null?'กิจกรรม '+row.activity_count+' รายการ · '+row.total_hours+' ชั่วโมง · '+outcomes[row.hours_result]:''
@@ -256,6 +265,16 @@ for(const [key,[label]] of Object.entries(filterSpec)){
   select.id='filter_'+key;wrapper.append(select);$('filters').append(wrapper);
 }
 $('filters').addEventListener('input',()=>{page=0;renderTable();});
+function resultBadge(status,labels){
+  if(!Object.hasOwn(labels,status)) return node('span','—');
+  return node('span',labels[status],'badge result-badge '+status);
+}
+function resultCell(value,status,labels){
+  const cell=node('td');
+  if(value!=null) cell.append(node('div',value));
+  cell.append(resultBadge(status,labels));
+  return cell;
+}
 function labelTableRow(row, bodyId){
   const headers=$(bodyId).closest('table').tHead.rows[0].cells;
   row.setAttribute('role','row');
@@ -268,7 +287,7 @@ function labelTableRow(row, bodyId){
 function renderTable() {
   const term=search.value.trim().toLowerCase();
   visible=records.filter(row=>(row.student_code+' '+row.full_name).toLowerCase().includes(term)&&
-    Object.keys(filterSpec).every(key=>!$('filter_'+key).value||$('filter_'+key).value===row[key]));
+    Object.keys(filterSpec).every(key=>!$('filter_'+key).value||$('filter_'+key).value===(key==='next_status'?displayNextStatus(row):row[key])));
   const pages=Math.max(1,Math.ceil(visible.length/perPage));
   page=Math.min(page,pages-1);
   $('count').textContent='พบ '+visible.length+' รายการ';
@@ -281,8 +300,9 @@ function renderTable() {
     const action=node('td'),button=node('button','เปิดข้อมูล','secondary');
     button.onclick=()=>run(()=>openDetail(row.id),button);action.append(button);
     tr.append(person,faculty,node('td',kinds[row.kind]||'—'),
-      node('td',[row.annual_gpa==null?'':Number(row.annual_gpa).toFixed(2),gradeOutcomes[row.gpa_result]].filter(Boolean).join(' · ')||'—'),
-      node('td',row.total_hours==null?'—':row.total_hours+' ชม. · '+outcomes[row.hours_result]),status,node('td',studyStates[row.study_status]),node('td',nextStates[row.next_status]||'—'),action);
+      resultCell(row.annual_gpa==null?null:Number(row.annual_gpa).toFixed(2),row.gpa_result,gradeOutcomes),
+      resultCell(row.total_hours==null?null:row.total_hours+' ชม.',row.hours_result,outcomes),
+      status,node('td',studyStates[row.study_status]),node('td',nextStatusLabel(row,schoolYear)||'—'),action);
     return labelTableRow(tr,'rows');
   }));
 }
@@ -512,7 +532,7 @@ $('export').onclick=()=>{
   const quote=value=>{const cell=String(value??'');return '"'+(/^[\s]*[=+\-@\t\r\n]/u.test(cell)?"'":'')+cell.replaceAll('"','""')+'"';};
   const values=[['ปีการศึกษา','รหัสนักศึกษา','ชื่อ–สกุล','ชั้นปี','สาขาวิชา','คณะ','ทุน','GPA 1','GPA 2','GPAX ประจำปี','ผลการเรียน','ชั่วโมงกิจกรรม','เกณฑ์ชั่วโมง','ผลกิจกรรม','ชั่วโมงสะสม','จำนวนกิจกรรม','สถานะทุน','สถานะการศึกษา','เหตุผล','สถานะทุนปีถัดไป','ผู้ปกครอง','ความเกี่ยวข้อง'],
     ...visible.filter(row=>row.kind).map(r=>[schoolYear,r.student_code,r.full_name,r.year_level,r.major,r.faculty,kinds[r.kind],
-      r.gpa1,r.gpa2,r.annual_gpa,gradeOutcomes[r.gpa_result],r.total_hours,r.required_hours,outcomes[r.hours_result],r.cumulative_hours,r.activity_count,states[r.status],studyStates[r.study_status],r.study_reason,nextStates[r.next_status],r.guardian_name,r.kinship||kin[r.relationship]])];
+      r.gpa1,r.gpa2,r.annual_gpa,gradeOutcomes[r.gpa_result],r.total_hours,r.required_hours,outcomes[r.hours_result],r.cumulative_hours,r.activity_count,states[r.status],studyStates[r.study_status],r.study_reason,nextStatusLabel(r,schoolYear),r.guardian_name,r.kinship||kin[r.relationship]])];
   const url=URL.createObjectURL(new Blob(['\uFEFF'+values.map(row=>row.map(quote).join(',')).join('\r\n')],{type:'text/csv;charset=utf-8'}));
   const link=node('a');link.href=url;link.download='ARU-scholarships-'+schoolYear+'.csv';link.click();
   setTimeout(()=>URL.revokeObjectURL(url),1000);
@@ -545,15 +565,17 @@ function renderHistory(history){
     const fields=node('dl',null,'year-fields');
     const values=[
       ['GPA ภาคเรียนที่ 1',grade(record?.gpa1)],['GPA ภาคเรียนที่ 2',grade(record?.gpa2)],
-      ['GPAX',grade(record?.annual_gpa)],['ผลตรวจสอบเกรด',gradeOutcomes[record?.gpa_result]||'—'],
+      ['GPAX',grade(record?.annual_gpa)],['ผลตรวจสอบเกรด',resultBadge(record?.gpa_result,gradeOutcomes)],
       ['สถานะการศึกษา',studyStates[record?.study_status]||'ไม่มีข้อมูล'],
       ['สถานะรับทุน',states[record?.status]||'ยังไม่ได้กำหนดทุน'],
       ['ประเภททุน',kinds[record?.kind]||'—'],
-      ['ผลกิจกรรม',outcomes[record?.hours_result]||'—'],
+      ['ผลกิจกรรม',resultBadge(record?.hours_result,outcomes)],
       ['กิจกรรมปีนี้',items.length+' รายการ · '+hours(items)+' ชั่วโมง']
     ];
     for(const [label,value] of values){
-      const field=node('div');field.append(node('dt',label),node('dd',value));fields.append(field);
+      const field=node('div'),description=node('dd');
+      if(typeof value==='string') description.textContent=value;else description.append(value);
+      field.append(node('dt',label),description);fields.append(field);
     }
     card.append(fields);
     if(items.length){

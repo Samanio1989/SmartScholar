@@ -77,6 +77,8 @@ input[type=number]{width:125px}button{background:#17614f;color:white;border-colo
 .year-fields div{min-width:0}.year-fields dt{font-size:.85rem;color:#496459}.year-fields dd{margin:2px 0 0;overflow-wrap:anywhere}
 .year-record details{margin:12px 0 0;padding:10px}.history-activities{padding-left:1.3rem}
 @media(max-width:600px){header{flex-wrap:wrap}.account-bar{flex-wrap:wrap}}
+.contract-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr));gap:12px;min-width:0;width:100%;margin:0;border:1px solid #dce6df;border-radius:12px;padding:14px}
+.contract-fields legend{font-weight:700}.contract-fields input{width:100%}
 </style></head>
 <body>
 <header><div><h1>ระบบทุนการศึกษาต่อเนื่อง</h1><p>กองพัฒนานักศึกษา · มหาวิทยาลัยราชภัฏพระนครศรีอยุธยา</p></div><div class="account-bar"><img id="accountPhoto" class="student-photo" alt="" hidden>
@@ -93,6 +95,7 @@ input[type=number]{width:125px}button{background:#17614f;color:white;border-colo
 <div id="staff" class="staff-layout" hidden>
 <aside id="staffSidebar" class="staff-sidebar">
 <nav id="staffNav" class="staff-nav" aria-label="เมนูจัดการทุน">
+<button type="button" data-panel="contractExportPanel" aria-controls="contractExportPanel">ส่งออกข้อมูลทำสัญญาทุน</button>
 <button type="button" data-panel="reportPanel" aria-controls="reportPanel" aria-current="true">รายชื่อนักศึกษาและรายงาน</button>
 <button type="button" data-panel="rosterPanel" aria-controls="rosterPanel">กำหนดรายชื่อผู้รับทุน</button>
 <button type="button" data-panel="rulesPanel" aria-controls="rulesPanel">เกณฑ์กิจกรรมและข้อยกเว้นรายปี</button>
@@ -125,6 +128,11 @@ input[type=number]{width:125px}button{background:#17614f;color:white;border-colo
 <form id="importActivities"><label>ไฟล์กิจกรรม CSV<input name="file" type="file" accept=".csv,text/csv" required></label>
 <button>นำเข้ากิจกรรม</button><a download href="activity_import_template.csv">ดาวน์โหลดแบบฟอร์มตัวอย่าง CSV</a></form>
 </section>
+<section id="contractExportPanel" hidden>
+<h2>ส่งออกข้อมูลทำสัญญาทุน</h2>
+<p>ดาวน์โหลดข้อมูลที่นักศึกษาส่งสำหรับปีการศึกษาที่เลือก ไฟล์มีเลขบัตรประชาชนและที่อยู่ตามทะเบียนบ้าน</p>
+<button type="button" id="exportContract">ดาวน์โหลด Excel (.xlsx)</button>
+<p id="contractExportStatus" role="status"></p></section>
 <section id="reportPanel">
 <h2>รายชื่อนักศึกษาและรายงาน</h2>
 <div class="stats" id="stats"></div>
@@ -137,6 +145,7 @@ input[type=number]{width:125px}button{background:#17614f;color:white;border-colo
 <div id="student" class="staff-layout" hidden>
 <aside id="studentSidebar" class="staff-sidebar"><nav id="studentNav" class="staff-nav" aria-label="เมนูนักศึกษา">
 <button type="button" data-panel="guardianPanel" aria-controls="guardianPanel" aria-current="true">กรอกข้อมูลผู้ปกครอง</button>
+<button type="button" data-panel="contractPanel" aria-controls="contractPanel">ข้อมูลทำสัญญาทุน</button>
 <button type="button" data-panel="historyPanel" aria-controls="historyPanel">ข้อมูลการรับทุนการศึกษา</button>
 </nav></aside>
 <div class="staff-content"><section id="guardianPanel">
@@ -147,6 +156,28 @@ input[type=number]{width:125px}button{background:#17614f;color:white;border-colo
 <div id="relative" hidden><label>ระบุความเกี่ยวข้อง<input name="kinship" maxlength="100"></label>
 <label class="check"><input type="checkbox" name="parents_unavailable">ยืนยันว่าทั้งบิดาและมารดาไม่ได้ส่งเสียเลี้ยงดู</label></div>
 <button>บันทึกผู้ปกครอง</button></form></section>
+<section id="contractPanel" hidden>
+<h2>ข้อมูลทำสัญญาทุน</h2><p id="contractStatus" role="status"></p>
+<form id="contractForm" hidden>
+<fieldset id="studentContractFields" class="contract-fields"><legend>ข้อมูลนักศึกษาและที่อยู่ตามทะเบียนบ้าน</legend>
+<label>เลขบัตรประชาชน<input name="student_id_number" inputmode="numeric" maxlength="13" pattern="[0-9]{13}" required></label>
+<label>วันเดือนปีเกิด<input name="student_birth_date" type="date" min="1900-01-01" required></label>
+<div>อายุ <output id="contractAge">—</output></div>
+<label>บ้านเลขที่<input name="student_house_no" maxlength="120" required></label>
+<label>หมู่ (ถ้ามี)<input name="student_village_no" maxlength="30"></label>
+<label>ตำบล / แขวง<input name="student_subdistrict" maxlength="120" required></label>
+<label>อำเภอ / เขต<input name="student_district" maxlength="120" required></label>
+<label>จังหวัด<input name="student_province" maxlength="120" required></label>
+</fieldset>
+<fieldset id="guardianContractFields" class="contract-fields"><legend>ข้อมูลผู้ปกครองผู้ลงนามและที่อยู่ตามทะเบียนบ้าน</legend>
+<label>เลขบัตรประชาชน<input name="guardian_id_number" inputmode="numeric" maxlength="13" pattern="[0-9]{13}" required></label>
+<label>บ้านเลขที่<input name="guardian_house_no" maxlength="120" required></label>
+<label>หมู่ (ถ้ามี)<input name="guardian_village_no" maxlength="30"></label>
+<label>ตำบล / แขวง<input name="guardian_subdistrict" maxlength="120" required></label>
+<label>อำเภอ / เขต<input name="guardian_district" maxlength="120" required></label>
+<label>จังหวัด<input name="guardian_province" maxlength="120" required></label>
+</fieldset>
+<button>บันทึกข้อมูลทำสัญญาทุน</button></form></section>
 <section id="historyPanel" hidden><h2>ข้อมูลการรับทุนการศึกษา</h2>
 <p id="historySummary"></p><div id="historyYears" class="year-history"></div></section>
 </div></div>
@@ -367,6 +398,7 @@ async function refresh() {
     form.elements.name.value=row?.guardian_name||'';form.elements.relationship.value=row?.relationship||'';
     form.elements.kinship.value=row?.kinship||'';form.elements.parents_unavailable.checked=row?.relationship==='relative';
     updateRelative();
+    if(!$('contractPanel').hidden) await loadContract(year);
   }
 }
 function updateRelative() {
@@ -627,11 +659,138 @@ const showStaffPanel=setupMenu('staffNav'),showStudentPanel=setupMenu('studentNa
 $('studentNav').querySelector('[data-panel="historyPanel"]').addEventListener('click',()=>{
   run(async()=>{const history=await api('student_history');if(role==='student'&&!$('student').hidden) renderHistory(history);});
 });
+const addressKeys=['house_no','village_no','subdistrict','district','province'];
+const contractKeys=['id_number',...addressKeys];
+let contractYear=null,contractRequest=0;
+function clearContract(){
+  contractRequest++;
+  contractYear=null;
+  $('contractForm').reset();
+  $('contractForm').hidden=true;
+  $('guardianContractFields').disabled=false;
+  $('contractStatus').textContent='';
+  $('contractExportStatus').textContent='';
+}
+function thaiToday(){
+  return new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Bangkok',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+}
+function ageYears(birth,today){
+  if(!birth||birth>today) return null;
+  return Number(today.slice(0,4))-Number(birth.slice(0,4))-(today.slice(5)<birth.slice(5)?1:0);
+}
+function updateContractAge(){
+  const age=ageYears($('contractForm').elements.student_birth_date.value,thaiToday());
+  $('contractAge').textContent=age==null?'—':age+' ปี';
+}
+$('contractForm').elements.student_birth_date.addEventListener('input',updateContractAge);
+async function loadContract(year){
+  clearContract();
+  const version=contractRequest;
+  const row=records[0];
+  if(row?.status!=='active'){
+    $('contractStatus').textContent='กรอกข้อมูลทำสัญญาได้เฉพาะปีที่มีสถานะรับทุน';
+    return;
+  }
+  $('contractStatus').textContent='กำลังโหลดข้อมูลปี '+year;
+  const data=await api('contract_get',{},year);
+  if(version!==contractRequest||schoolYear!==year) return;
+  const form=$('contractForm');
+  for(const [person,keys] of [['student',[...contractKeys,'birth_date']],['guardian',contractKeys]]){
+    for(const key of keys) form.elements[person+'_'+key].value=data[person]?.[key]??'';
+  }
+  form.elements.student_birth_date.max=thaiToday();
+  $('guardianContractFields').disabled=Boolean(row.guardian_confirmed_at&&data.guardian);
+  const guardian=row.guardian_name?'ผู้ปกครองผู้ลงนาม '+row.guardian_name:'ระบุชื่อผู้ลงนามเพิ่มเติมในเมนูกรอกข้อมูลผู้ปกครอง';
+  $('contractStatus').textContent='ปีการศึกษา '+year+' · '+guardian+
+    ($('guardianContractFields').disabled?' · ข้อมูลผู้ปกครองยืนยันแล้ว':'');
+  contractYear=year;form.hidden=false;updateContractAge();
+}
+$('studentNav').querySelector('[data-panel="contractPanel"]').addEventListener('click',()=>{
+  if(contractYear!==schoolYear) run(()=>loadContract(schoolYear));
+});
+bind('contractForm',async(data)=>{
+  const year=contractYear;
+  if(year!==schoolYear||Number($('year').value)!==year) throw Error('กดแสดงข้อมูลสำหรับปีการศึกษาที่เลือกก่อนบันทึก');
+  const fields=(person,keys)=>Object.fromEntries(keys.map(key=>[key,(data[person+'_'+key]||'').trim()]));
+  await api('contract_save',{
+    student:fields('student',[...contractKeys,'birth_date']),
+    guardian:fields('guardian',contractKeys)
+  },year);
+  if(schoolYear===year&&!$('contractPanel').hidden){
+    await loadContract(year);
+    $('notice').textContent='บันทึกข้อมูลทำสัญญาทุนปี '+year+' แล้ว';
+  }
+});
+function makeContractWorkbook(rows){
+  const xml=value=>String(value??'').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\uFFFE\uFFFF]/gu,'')
+    .replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
+  const addresses=['บ้านเลขที่','หมู่','ตำบล/แขวง','อำเภอ/เขต','จังหวัด'];
+  const headers=['ปีการศึกษา','รหัสนักศึกษา','ชื่อ–สกุลนักศึกษา','คณะ','สาขาวิชา','ประเภททุน','เลขบัตรประชาชนนักศึกษา',
+    'วันเดือนปีเกิด (ค.ศ.)','อายุ (ปี)',...addresses.map(x=>x+'นักศึกษา'),'ชื่อ–สกุลผู้ปกครอง','ความเกี่ยวข้อง',
+    'เลขบัตรประชาชนผู้ปกครอง',...addresses.map(x=>x+'ผู้ปกครอง')];
+  const sheetRows=[headers,...rows.map(row=>[
+    row.year,row.student_code,row.full_name,row.faculty,row.major,kinds[row.kind],row.student.id_number,row.student.birth_date,row.age,
+    ...addressKeys.map(key=>row.student[key]),row.guardian_name,row.kinship||kin[row.relationship],row.guardian.id_number,
+    ...addressKeys.map(key=>row.guardian[key])
+  ])];
+  const sheet=sheetRows.map((row,index)=>'<row r="'+(index+1)+'">'+row.map(value=>
+    typeof value==='number'?'<c><v>'+value+'</v></c>':'<c t="inlineStr"><is><t xml:space="preserve">'+xml(value)+'</t></is></c>'
+  ).join('')+'</row>').join('');
+  const main='http://schemas.openxmlformats.org/spreadsheetml/2006/main';
+  const rel='http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+  const packageRel='http://schemas.openxmlformats.org/package/2006/relationships';
+  return zipWorkbook({
+    '[Content_Types].xml':'<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>',
+    '_rels/.rels':'<Relationships xmlns="'+packageRel+'"><Relationship Id="rId1" Type="'+rel+'/officeDocument" Target="xl/workbook.xml"/></Relationships>',
+    'xl/workbook.xml':'<workbook xmlns="'+main+'" xmlns:r="'+rel+'"><sheets><sheet name="ข้อมูลทำสัญญาทุน" sheetId="1" r:id="rId1"/></sheets></workbook>',
+    'xl/_rels/workbook.xml.rels':'<Relationships xmlns="'+packageRel+'"><Relationship Id="rId1" Type="'+rel+'/worksheet" Target="worksheets/sheet1.xml"/></Relationships>',
+    'xl/worksheets/sheet1.xml':'<worksheet xmlns="'+main+'"><sheetData>'+sheet+'</sheetData></worksheet>'
+  });
+}
+function zipWorkbook(files){
+  const encode=new TextEncoder(), data=[],directory=[];
+  const make=size=>new DataView(new ArrayBuffer(size));
+  const crcTable=Uint32Array.from({length:256},(_,value)=>{
+    for(let bit=0;bit<8;bit++) value=(value>>>1)^((value&1)?0xedb88320:0);
+    return value;
+  });
+  let offset=0, directorySize=0;
+  for(const [path,contents] of Object.entries(files)){
+    const name=encode.encode(path),body=encode.encode(contents);
+    let crc=0xffffffff;
+    for(const byte of body) crc=(crc>>>8)^crcTable[(crc^byte)&255];
+    crc=(crc^0xffffffff)>>>0;
+    const local=make(30),central=make(46);
+    local.setUint32(0,0x04034b50,true);local.setUint16(4,20,true);
+    local.setUint32(14,crc,true);local.setUint32(18,body.length,true);local.setUint32(22,body.length,true);
+    local.setUint16(26,name.length,true);
+    central.setUint32(0,0x02014b50,true);central.setUint16(4,20,true);central.setUint16(6,20,true);
+    central.setUint32(16,crc,true);central.setUint32(20,body.length,true);central.setUint32(24,body.length,true);
+    central.setUint16(28,name.length,true);central.setUint32(42,offset,true);
+    data.push(local.buffer,name,body);directory.push(central.buffer,name);
+    offset+=30+name.length+body.length;directorySize+=46+name.length;
+  }
+  const end=make(22),count=Object.keys(files).length;
+  end.setUint32(0,0x06054b50,true);end.setUint16(8,count,true);end.setUint16(10,count,true);
+  end.setUint32(12,directorySize,true);end.setUint32(16,offset,true);
+  return new Blob([...data,...directory,end.buffer],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+}
+$('exportContract').onclick=()=>run(async()=>{
+  const year=rosterYear(),status=$('contractExportStatus');
+  status.textContent='';
+  const rows=await api('contract_export',{},year);
+  if(!rows.length){status.textContent='ยังไม่มีข้อมูลทำสัญญาทุนในปี '+year;return;}
+  const url=URL.createObjectURL(makeContractWorkbook(rows)),link=node('a');
+  link.href=url;link.download='ARU-ข้อมูลทำสัญญาทุน-'+year+'.xlsx';link.click();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+  status.textContent='ส่งออก '+rows.length+' รายการ · ปี '+year;
+},$('exportContract'));
+
 async function sessionView(session) {
   $('workspace').hidden=true;$('staff').hidden=true;$('student').hidden=true;
   $('login').hidden=Boolean(session);$('logout').hidden=!session;
   $('accountName').hidden=true;showPhoto('accountPhoto',null);
-  if(!session){$('historyYears').replaceChildren();$('historySummary').textContent='';records=[];visible=[];$('notice').textContent='';return;}
+  if(!session){clearContract();$('historyYears').replaceChildren();$('historySummary').textContent='';records=[];visible=[];$('notice').textContent='';return;}
   const profile=await api('profile');
   role=profile.role;
   $('signedInName').textContent=profile.full_name||'—';

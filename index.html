@@ -144,19 +144,29 @@ input[type=number]{width:125px}button{background:#17614f;color:white;border-colo
 </div></div>
 <div id="student" class="staff-layout" hidden>
 <aside id="studentSidebar" class="staff-sidebar"><nav id="studentNav" class="staff-nav" aria-label="เมนูนักศึกษา">
-<button type="button" data-panel="guardianPanel" aria-controls="guardianPanel" aria-current="true">กรอกข้อมูลผู้ปกครอง</button>
-<button type="button" data-panel="contractPanel" aria-controls="contractPanel">ข้อมูลทำสัญญาทุน</button>
+<button type="button" data-panel="contractPanel" aria-controls="contractPanel" aria-current="true">ข้อมูลทำสัญญาทุน</button>
+<button type="button" data-panel="guardianPanel" aria-controls="guardianPanel">กรอกข้อมูลผู้ปกครอง</button>
 <button type="button" data-panel="historyPanel" aria-controls="historyPanel">ข้อมูลการรับทุนการศึกษา</button>
 </nav></aside>
-<div class="staff-content"><section id="guardianPanel">
+<div class="staff-content"><section id="guardianPanel" hidden>
 <h2>กรอกข้อมูลผู้ปกครอง</h2><div id="studentInfo"></div><p id="guardianLock" role="status" hidden></p>
 <form id="guardian" hidden>
 <label>ชื่อ–สกุลผู้ปกครองผู้ลงนาม<input name="name" maxlength="160" required></label>
 <label>ความเกี่ยวข้อง<select name="relationship" required><option value="">เลือกความเกี่ยวข้อง</option><option value="father">บิดา</option><option value="mother">มารดา</option><option value="relative">ญาติผู้ปกครอง</option></select></label>
 <div id="relative" hidden><label>ระบุความเกี่ยวข้อง<input name="kinship" maxlength="100"></label>
 <label class="check"><input type="checkbox" name="parents_unavailable">ยืนยันว่าทั้งบิดาและมารดาไม่ได้ส่งเสียเลี้ยงดู</label></div>
-<button>บันทึกผู้ปกครอง</button></form></section>
-<section id="contractPanel" hidden>
+<button>บันทึกชื่อผู้ปกครอง</button></form>
+<p id="guardianContractStatus" role="status"></p>
+<form id="guardianContractForm" hidden><fieldset id="guardianContractFields" class="contract-fields"><legend>ข้อมูลผู้ปกครองผู้ลงนามและที่อยู่ตามทะเบียนบ้าน</legend>
+<label>เลขบัตรประชาชน<input name="guardian_id_number" inputmode="numeric" maxlength="13" pattern="[0-9]{13}" required></label>
+<label>บ้านเลขที่<input name="guardian_house_no" maxlength="120" required></label>
+<label>หมู่ (ถ้ามี)<input name="guardian_village_no" maxlength="30"></label>
+<label>ตำบล / แขวง<input name="guardian_subdistrict" maxlength="120" required></label>
+<label>อำเภอ / เขต<input name="guardian_district" maxlength="120" required></label>
+<label>จังหวัด<input name="guardian_province" maxlength="120" required></label>
+</fieldset>
+<button id="saveGuardianContract">บันทึกเลขบัตรและที่อยู่ผู้ปกครอง</button></form></section>
+<section id="contractPanel">
 <h2>ข้อมูลทำสัญญาทุน</h2><p id="contractStatus" role="status"></p>
 <form id="contractForm" hidden>
 <fieldset id="studentContractFields" class="contract-fields"><legend>ข้อมูลนักศึกษาและที่อยู่ตามทะเบียนบ้าน</legend>
@@ -169,14 +179,7 @@ input[type=number]{width:125px}button{background:#17614f;color:white;border-colo
 <label>อำเภอ / เขต<input name="student_district" maxlength="120" required></label>
 <label>จังหวัด<input name="student_province" maxlength="120" required></label>
 </fieldset>
-<fieldset id="guardianContractFields" class="contract-fields"><legend>ข้อมูลผู้ปกครองผู้ลงนามและที่อยู่ตามทะเบียนบ้าน</legend>
-<label>เลขบัตรประชาชน<input name="guardian_id_number" inputmode="numeric" maxlength="13" pattern="[0-9]{13}" required></label>
-<label>บ้านเลขที่<input name="guardian_house_no" maxlength="120" required></label>
-<label>หมู่ (ถ้ามี)<input name="guardian_village_no" maxlength="30"></label>
-<label>ตำบล / แขวง<input name="guardian_subdistrict" maxlength="120" required></label>
-<label>อำเภอ / เขต<input name="guardian_district" maxlength="120" required></label>
-<label>จังหวัด<input name="guardian_province" maxlength="120" required></label>
-</fieldset>
+
 <button>บันทึกข้อมูลทำสัญญาทุน</button></form></section>
 <section id="historyPanel" hidden><h2>ข้อมูลการรับทุนการศึกษา</h2>
 <p id="historySummary"></p><div id="historyYears" class="year-history"></div></section>
@@ -398,7 +401,8 @@ async function refresh() {
     form.elements.name.value=row?.guardian_name||'';form.elements.relationship.value=row?.relationship||'';
     form.elements.kinship.value=row?.kinship||'';form.elements.parents_unavailable.checked=row?.relationship==='relative';
     updateRelative();
-    if(!$('contractPanel').hidden) await loadContract(year);
+    if(!$('contractPanel').hidden||!$('guardianPanel').hidden) await loadContract(year);
+    else clearContract();
   }
 }
 function updateRelative() {
@@ -665,8 +669,11 @@ let contractYear=null,contractRequest=0;
 function clearContract(){
   contractRequest++;
   contractYear=null;
-  $('contractForm').reset();
-  $('contractForm').hidden=true;
+  for(const id of ['contractForm','guardianContractForm']){
+    $(id).reset();$(id).hidden=true;
+  }
+  $('saveGuardianContract').hidden=false;
+  $('guardianContractStatus').textContent='';
   $('guardianContractFields').disabled=false;
   $('contractStatus').textContent='';
   $('contractExportStatus').textContent='';
@@ -694,33 +701,42 @@ async function loadContract(year){
   $('contractStatus').textContent='กำลังโหลดข้อมูลปี '+year;
   const data=await api('contract_get',{},year);
   if(version!==contractRequest||schoolYear!==year) return;
-  const form=$('contractForm');
-  for(const [person,keys] of [['student',[...contractKeys,'birth_date']],['guardian',contractKeys]]){
-    for(const key of keys) form.elements[person+'_'+key].value=data[person]?.[key]??'';
-  }
+  const form=$('contractForm'),guardianForm=$('guardianContractForm');
+  for(const key of [...contractKeys,'birth_date']) form.elements['student_'+key].value=data.student?.[key]??'';
+  for(const key of contractKeys) guardianForm.elements['guardian_'+key].value=data.guardian?.[key]??'';
   form.elements.student_birth_date.max=thaiToday();
-  $('guardianContractFields').disabled=Boolean(row.guardian_confirmed_at&&data.guardian);
-  const guardian=row.guardian_name?'ผู้ปกครองผู้ลงนาม '+row.guardian_name:'ระบุชื่อผู้ลงนามเพิ่มเติมในเมนูกรอกข้อมูลผู้ปกครอง';
-  $('contractStatus').textContent='ปีการศึกษา '+year+' · '+guardian+
-    ($('guardianContractFields').disabled?' · ข้อมูลผู้ปกครองยืนยันแล้ว':'');
-  contractYear=year;form.hidden=false;updateContractAge();
+  const guardianLocked=Boolean(row.guardian_confirmed_at&&data.guardian?.id_number);
+  $('guardianContractFields').disabled=guardianLocked;
+  $('saveGuardianContract').hidden=guardianLocked;
+  $('guardianContractStatus').textContent=guardianLocked?'เลขบัตรและที่อยู่ผู้ปกครองยืนยันแล้ว':'';
+  $('contractStatus').textContent='ปีการศึกษา '+year;
+  contractYear=year;form.hidden=false;guardianForm.hidden=false;updateContractAge();
 }
-$('studentNav').querySelector('[data-panel="contractPanel"]').addEventListener('click',()=>{
-  if(contractYear!==schoolYear) run(()=>loadContract(schoolYear));
-});
-bind('contractForm',async(data)=>{
-  const year=contractYear;
-  if(year!==schoolYear||Number($('year').value)!==year) throw Error('กดแสดงข้อมูลสำหรับปีการศึกษาที่เลือกก่อนบันทึก');
-  const fields=(person,keys)=>Object.fromEntries(keys.map(key=>[key,(data[person+'_'+key]||'').trim()]));
-  await api('contract_save',{
-    student:fields('student',[...contractKeys,'birth_date']),
-    guardian:fields('guardian',contractKeys)
-  },year);
-  if(schoolYear===year&&!$('contractPanel').hidden){
-    await loadContract(year);
-    $('notice').textContent='บันทึกข้อมูลทำสัญญาทุนปี '+year+' แล้ว';
-  }
-});
+for(const panel of ['contractPanel','guardianPanel']){
+  $('studentNav').querySelector('[data-panel="'+panel+'"]').addEventListener('click',()=>{
+    if(contractYear!==schoolYear) run(()=>loadContract(schoolYear));
+  });
+}
+for(const [formId,person,keys,label] of [
+  ['contractForm','student',[...contractKeys,'birth_date'],'ข้อมูลทำสัญญาทุน'],
+  ['guardianContractForm','guardian',contractKeys,'เลขบัตรและที่อยู่ผู้ปกครอง']
+]){
+  bind(formId,async data=>{
+    const year=contractYear;
+    if(year!==schoolYear||Number($('year').value)!==year) throw Error('กดแสดงข้อมูลสำหรับปีการศึกษาที่เลือกก่อนบันทึก');
+    const fields=Object.fromEntries(keys.map(key=>[key,(data[person+'_'+key]||'').trim()]));
+    await api('contract_save',{[person]:fields},year);
+    if(schoolYear!==year||contractYear!==year) return;
+    if(person==='guardian'){
+      const [row]=await api('list',{},year);
+      if(schoolYear!==year||contractYear!==year) return;
+      const locked=Boolean(row?.guardian_confirmed_at);
+      $('guardianContractFields').disabled=locked;$('saveGuardianContract').hidden=locked;
+      $('guardianContractStatus').textContent=locked?'เลขบัตรและที่อยู่ผู้ปกครองยืนยันแล้ว':'';
+    }
+    $('notice').textContent='บันทึก'+label+'ปี '+year+' แล้ว';
+  });
+}
 function makeContractWorkbook(rows){
   const xml=value=>String(value??'').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\uFFFE\uFFFF]/gu,'')
     .replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
@@ -801,7 +817,7 @@ async function sessionView(session) {
   else{
     const history=await api('student_history');
     $('year').value=history.current_year;
-    showStudentPanel('guardianPanel');renderHistory(history);
+    showStudentPanel('contractPanel');renderHistory(history);
   }
   await refresh();
   $('workspace').hidden=false;$('staff').hidden=role!=='staff';$('student').hidden=role!=='student';
